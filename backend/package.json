@@ -13,7 +13,9 @@
     "check-balance": "ts-node scripts/check_balance.ts",
     "opt-in": "ts-node scripts/opt_in.ts",
     "mint": "ts-node scripts/mint_currency.ts",
-    "check-user-state": "ts-node scripts/check_user_state.ts"
+    "check-user-state": "ts-node scripts/check_user_state.ts",
+    "test-noop": "ts-node scripts/test_noop.ts",
+    "test-mint-debug": "ts-node scripts/test_mint_debug.ts"
   },
   "keywords": [
     "algorand",

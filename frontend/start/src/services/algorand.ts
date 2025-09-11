@@ -41,20 +41,7 @@ export class AlgorandService {
     }
   }
 
-  // Get application balance
-  async getAppBalance(): Promise<number> {
-    try {
-      const accountInfo = await this.algodClient
-        .accountInformation(this.appAddress)
-        .do();
-      return accountInfo.amount / 1e6; // Convert from microALGO to ALGO
-    } catch (error) {
-      console.error("Error getting app balance:", error);
-      throw error;
-    }
-  }
-
-  // Send deposit to application
+  // Send deposit to application (group transaction)
   async sendDeposit(mnemonic: string, amount: number): Promise<string> {
     try {
       const account = this.getAccountFromMnemonic(mnemonic);
@@ -84,9 +71,27 @@ export class AlgorandService {
         note: textEncoder.encode("Frontend deposit to smart contract"),
       });
 
-      // Sign and send transaction
-      const signedTxn = paymentTxn.signTxn(account.sk);
-      const txId = paymentTxn.txID().toString();
+      // Create application call transaction
+      const appCallTxn = algosdk.makeApplicationNoOpTxnFromObject({
+        from: account.addr,
+        suggestedParams,
+        appIndex: this.appId,
+      });
+
+      // Create transaction group
+      const txnGroup = [appCallTxn, paymentTxn];
+      algosdk.assignGroupID(txnGroup);
+
+      // Sign transactions
+      const signedAppCall = appCallTxn.signTxn(account.sk);
+      const signedPayment = paymentTxn.signTxn(account.sk);
+
+      // Combine signed transactions
+      const signedTxn = new Uint8Array(
+        signedAppCall.length + signedPayment.length
+      );
+      signedTxn.set(signedAppCall, 0);
+      signedTxn.set(signedPayment, signedAppCall.length);
 
       const result = await this.algodClient.sendRawTransaction(signedTxn).do();
 
@@ -166,45 +171,9 @@ export class AlgorandService {
     }
   }
 
-  // Mint digital currency
-  async mintCurrency(mnemonic: string, amount: number): Promise<string> {
-    try {
-      const account = this.getAccountFromMnemonic(mnemonic);
-
-      // Get suggested parameters
-      const suggestedParams = await this.algodClient
-        .getTransactionParams()
-        .do();
-
-      // Create NoOp transaction with mint amount as argument
-      const noOpTxn = algosdk.makeApplicationNoOpTxnFromObject({
-        from: account.addr,
-        suggestedParams,
-        appIndex: this.appId,
-        appArgs: [textEncoder.encode(amount.toString())],
-      });
-
-      // Sign and send transaction
-      const signedTxn = noOpTxn.signTxn(account.sk);
-      const txId = noOpTxn.txID().toString();
-
-      const result = await this.algodClient.sendRawTransaction(signedTxn).do();
-
-      // Wait for confirmation
-      await algosdk.waitForConfirmation(this.algodClient, result.txId, 4);
-
-      return result.txId;
-    } catch (error) {
-      console.error("Error minting currency:", error);
-      throw error;
-    }
-  }
-
-  // Get user's local state in the smart contract
+  // Get user's balance variable in the smart contract
   async getUserState(mnemonic: string): Promise<{
     balance: number;
-    used: number;
-    remaining: number;
   }> {
     try {
       const account = this.getAccountFromMnemonic(mnemonic);
@@ -220,29 +189,34 @@ export class AlgorandService {
       );
 
       if (!appLocalState) {
-        return { balance: 0, used: 0, remaining: 0 };
+        return { balance: 0 };
       }
 
-      // Parse local state
+      // Parse local state - only look for balance variable
       let balance = 0;
-      let used = 0;
 
       if (appLocalState["key-value"]) {
+        console.log(
+          "Frontend: Found local state keys:",
+          appLocalState["key-value"]
+        );
         for (const kv of appLocalState["key-value"]) {
-          const key = textDecoder.decode(new Uint8Array(kv.key));
+          // Use the same approach as backend check_user_state.ts
+          const key = atob(kv.key); // Base64 decode
           const value = kv.value.uint || 0;
+
+          console.log(`Frontend: Key="${key}", Value=${value}`);
 
           if (key === "balance") {
             balance = value / 1e6; // Convert from microALGO to ALGO
-          } else if (key === "used") {
-            used = value / 1e6; // Convert from microALGO to ALGO
+            console.log(`Frontend: Found balance=${balance} ALGO`);
           }
         }
+      } else {
+        console.log("Frontend: No key-value pairs found in local state");
       }
 
-      const remaining = balance - used;
-
-      return { balance, used, remaining };
+      return { balance };
     } catch (error) {
       console.error("Error getting user state:", error);
       throw error;

@@ -66,39 +66,19 @@ async function checkUserState() {
 
       // Parse local state
       let userBalance = 0;
-      let usedAmount = 0;
 
       for (const kv of userAppState["key-value"]) {
         const key = Buffer.from(kv.key, "base64").toString();
         const value = kv.value.uint || 0;
 
         if (key === "balance") {
-          // User balance key
+          // User balance variable
           userBalance = value / 1e6; // Convert from microALGO to ALGO
-        } else if (key === "used") {
-          // Used amount key
-          usedAmount = value / 1e6; // Convert from microALGO to ALGO
         }
       }
 
-      const remainingBalance = userBalance - usedAmount;
-
       console.log("💰 User State:");
-      console.log(`   Deposited Balance: ${userBalance.toFixed(6)} ALGO`);
-      console.log(`   Used Amount: ${usedAmount.toFixed(6)} ALGO`);
-      console.log(
-        `   Remaining Balance: ${remainingBalance.toFixed(6)} ALGO\n`
-      );
-
-      // Get contract's total balance
-      const contractInfo = await algodClient
-        .accountInformation(appAddress)
-        .do();
-      const contractBalance = contractInfo.amount / 1e6;
-
-      console.log("📊 Contract Information:");
-      console.log(`   Contract Balance: ${contractBalance.toFixed(6)} ALGO`);
-      console.log(`   Contract Address: ${appAddress}\n`);
+      console.log(`   Balance Variable: ${userBalance.toFixed(6)} ALGO\n`);
 
       console.log("🔗 Explorer Links:");
       console.log(
@@ -108,16 +88,13 @@ async function checkUserState() {
         `   Contract: https://testnet.algoexplorer.io/address/${appAddress}\n`
       );
 
-      if (remainingBalance > 0) {
+      if (userBalance > 0) {
         console.log(
-          `✅ You can mint up to ${remainingBalance.toFixed(
-            6
-          )} digital currency`
+          `✅ Balance variable is active: ${userBalance.toFixed(6)} ALGO`
         );
-        console.log(`   Run: npm run mint ${remainingBalance.toFixed(2)}`);
       } else {
-        console.log("ℹ️  No remaining balance available for minting");
-        console.log("   Deposit more ALGO to mint additional digital currency");
+        console.log("ℹ️  Balance variable is empty");
+        console.log("   Deposit ALGO to add to your balance variable");
       }
     } catch (error) {
       console.error("❌ Error checking user state:", error);

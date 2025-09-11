@@ -42,16 +42,6 @@ return
 
 // Handle NoOp transactions (main application logic)
 handle_noop:
-    // Check if this is an application call with arguments (mint)
-    txn TypeEnum
-    int appl
-    ==
-    txn NumAppArgs
-    int 1
-    ==
-    &&
-    bnz handle_mint
-    
     // Check if this is an application call with payment (deposit)
     txn TypeEnum
     int appl
@@ -66,19 +56,15 @@ handle_noop:
     &&
     bnz check_deposit_payment
     
-    // If not a deposit, continue to other checks
-    b check_other_calls
+    // For deployment and other NoOp calls without args, accept
+    int 1
+    return
     
 check_deposit_payment:
     gtxn 1 TypeEnum
     int pay
     ==
     bnz handle_deposit
-    b check_other_calls
-    
-check_other_calls:
-    
-    // For deployment and other NoOp calls without args, accept
     int 1
     return
 
@@ -93,7 +79,7 @@ handle_deposit:
     return
     
 deposit_valid:
-    // Update user's balance in local state
+    // Add payment amount to user's balance variable
     txn Sender
     byte "balance"
     txn Sender
@@ -133,65 +119,12 @@ payment_valid:
     return
 
 
-// Handle mint transactions (application call with amount)
-handle_mint:
-    // Get mint amount from application arguments
-    txn ApplicationArgs 0
-    btoi
-    store 0  // Store mint amount
-    
-    // Get user's current balance
-    txn Sender
-    byte "balance"
-    app_local_get
-    store 1  // Store current balance
-    
-    // Get user's used amount
-    txn Sender
-    byte "used"
-    app_local_get
-    store 2  // Store used amount
-    
-    // Calculate remaining balance
-    load 1  // Current balance
-    load 2  // Used amount
-    -
-    store 3  // Store remaining balance
-    
-    // Check if mint amount <= remaining balance
-    load 0  // Mint amount
-    load 3  // Remaining balance
-    <=
-    bnz mint_valid
-    int 0
-    return
-    
-mint_valid:
-    // Update used amount
-    txn Sender
-    byte "used"
-    load 2  // Current used amount
-    load 0  // Mint amount
-    +
-    app_local_put
-    
-    // Accept mint
-    int 1
-    return
-
 // Handle OptIn transactions (users joining the application)
 handle_optin:
-    // Initialize user's local state
-    // Balance starts at 0
+    // Initialize user's balance variable to 0
     txn Sender
-    byte "balance"  // Key for user balance
-    int 0  // Initial balance
-    app_local_put
-    
-    // Used amount starts at 0
-    txn Sender
-    byte "used"  // Key for used amount
-    int 0  // Initial used amount
+    byte "balance"  // Key for user balance variable
+    int 0  // Initial balance variable
     app_local_put
     
     // Accept opt-in

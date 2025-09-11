@@ -96,7 +96,7 @@ const App: React.FC = () => {
                   </p>
                   <pre className="text-xs bg-gray-100 p-2 rounded mt-2 overflow-x-auto">
                     {`VITE_USER_MNEMONIC=your_25_word_mnemonic_phrase_here
-VITE_APP_ID=745678570
+VITE_APP_ID=745681288
 VITE_ALGOD_BASE_URL=https://testnet-api.algonode.cloud`}
                   </pre>
                 </div>

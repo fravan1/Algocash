@@ -5,8 +5,9 @@ A React frontend application for interacting with your deployed Algorand smart c
 ## 🎯 Features
 
 - **Wallet Connection**: Connect using your 25-word mnemonic phrase
-- **Balance Checking**: View your account and contract balances
+- **Balance Checking**: View your account balance and deposit tracking
 - **Deposit Functionality**: Send ALGO deposits to the smart contract
+- **Balance Variable Tracking**: See your total deposits in the contract
 - **Contract Interactions**: Opt into app and call contract functions
 - **Transaction Tracking**: View transaction details and explorer links
 
@@ -28,7 +29,7 @@ Create a `.env` file in the `frontend/start` directory:
 VITE_ALGOD_BASE_URL=https://testnet-api.algonode.cloud
 
 # Application ID (from backend deployment)
-VITE_APP_ID=745678570
+VITE_APP_ID=745681288
 
 # User's seed phrase (for frontend transactions)
 # Replace with your actual 25-word mnemonic
@@ -50,7 +51,7 @@ The application will be available at `http://localhost:5173`
 | Variable              | Description               | Example                              |
 | --------------------- | ------------------------- | ------------------------------------ |
 | `VITE_ALGOD_BASE_URL` | Algorand API endpoint     | `https://testnet-api.algonode.cloud` |
-| `VITE_APP_ID`         | Your deployed contract ID | `745678570`                          |
+| `VITE_APP_ID`         | Your deployed contract ID | `745681288`                          |
 | `VITE_USER_MNEMONIC`  | Your 25-word seed phrase  | `word1 word2 ... word25`             |
 
 ### Backend Integration
@@ -71,8 +72,8 @@ This frontend works with the contract deployed from your backend:
 
 ### 2. View Balances
 
-- **Your Balance**: Shows your account's ALGO balance
-- **Contract Balance**: Shows the smart contract's ALGO balance
+- **Your Account Balance**: Shows your account's ALGO balance
+- **Balance Variable**: Shows your total deposits in the contract
 
 ### 3. Send Deposits
 

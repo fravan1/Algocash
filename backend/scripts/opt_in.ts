@@ -101,15 +101,11 @@ async function optIn() {
     );
 
     console.log("✅ Successfully opted into the application!");
-    console.log("   Your local state has been initialized:");
-    console.log("   - Balance: 0 ALGO");
-    console.log("   - Used Amount: 0 ALGO");
-    console.log("   - Remaining Balance: 0 ALGO\n");
+    console.log("   Your balance variable has been initialized to 0 ALGO\n");
 
     console.log("📝 Next Steps:");
     console.log("   1. Deposit ALGO to the contract: npm run deposit");
     console.log("   2. Check your state: npm run check-user-state");
-    console.log("   3. Mint digital currency: npm run mint <amount>");
   } catch (error) {
     console.error("❌ Error opting into application:", error);
     process.exit(1);

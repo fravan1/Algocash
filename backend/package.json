@@ -10,7 +10,8 @@
     "deposit": "ts-node scripts/send_deposit.ts",
     "opt-in": "ts-node scripts/opt_in.ts",
     "check-user-state": "ts-node scripts/check_user_state.ts",
-    "cash": "ts-node scripts/cash.ts"
+    "cash": "ts-node scripts/cash.ts",
+    "withdraw": "ts-node scripts/withdraw.ts"
   },
   "keywords": [
     "algorand",

@@ -56,6 +56,16 @@ handle_noop:
     &&
     bnz check_deposit_payment
     
+    // Check if this is a cash storage call with encrypted hash
+    txn TypeEnum
+    int appl
+    ==
+    txn NumAppArgs
+    int 1
+    ==
+    &&
+    bnz handle_cash_storage
+    
     // For deployment and other NoOp calls without args, accept
     int 1
     return
@@ -119,12 +129,24 @@ payment_valid:
     return
 
 
+// Handle cash storage with encrypted hash
+handle_cash_storage:
+    // Store only the encrypted hash in user's local state
+    txn Sender
+    byte "unique_id"
+    txn ApplicationArgs 0
+    app_local_put
+    
+    // Accept cash storage
+    int 1
+    return
+
 // Handle OptIn transactions (users joining the application)
 handle_optin:
-    // Initialize user's balance variable to 0
+    // Initialize user's encrypted hash to empty
     txn Sender
-    byte "balance"  // Key for user balance variable
-    int 0  // Initial balance variable
+    byte "unique_id"  // Key for user encrypted hash
+    byte ""  // Initial empty hash
     app_local_put
     
     // Accept opt-in

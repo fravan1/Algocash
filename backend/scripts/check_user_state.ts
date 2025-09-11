@@ -66,19 +66,23 @@ async function checkUserState() {
 
       // Parse local state
       let userBalance = 0;
+      let userUniqueId = "";
 
       for (const kv of userAppState["key-value"]) {
         const key = Buffer.from(kv.key, "base64").toString();
-        const value = kv.value.uint || 0;
 
         if (key === "balance") {
           // User balance variable
-          userBalance = value / 1e6; // Convert from microALGO to ALGO
+          userBalance = (kv.value.uint || 0) / 1e6; // Convert from microALGO to ALGO
+        } else if (key === "unique_id") {
+          // User unique ID
+          userUniqueId = Buffer.from(kv.value.bytes || "", "base64").toString();
         }
       }
 
       console.log("💰 User State:");
-      console.log(`   Balance Variable: ${userBalance.toFixed(6)} ALGO\n`);
+      console.log(`   Balance Variable: ${userBalance.toFixed(6)} ALGO`);
+      console.log(`   Unique ID: ${userUniqueId || "Not set"}\n`);
 
       console.log("🔗 Explorer Links:");
       console.log(

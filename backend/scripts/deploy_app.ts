@@ -95,8 +95,8 @@ async function deployApp() {
       clearProgram: new Uint8Array(Buffer.from(clearProgram.result, "base64")),
       numGlobalByteSlices: 0,
       numGlobalInts: 0,
-      numLocalByteSlices: 0,
-      numLocalInts: 2, // User balance and used amount
+      numLocalByteSlices: 1, // User encrypted hash
+      numLocalInts: 0, // No integers needed
     });
 
     // Sign and send transaction

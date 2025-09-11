@@ -1,0 +1,24 @@
+{
+  "KYG8QSZ3S8FV": {
+    "amount": 0.5,
+    "timestamp": "2025-09-11T22:26:51.238Z"
+  },
+  "J31SNIZBWLIM": {
+    "amount": 0.3,
+    "timestamp": "2025-09-11T22:27:11.305Z"
+  },
+  "UZD598EM02J4": {
+    "amount": 0.45,
+    "timestamp": "2025-09-11T22:28:23.282Z"
+  },
+  "CELPEU1I0Q4I": {
+    "amount": 0.66,
+    "timestamp": "2025-09-11T22:32:00.026Z",
+    "txId": "IMEXOPON4APRGL5GYIZVFZIX5RF5DGTNDXWRCN7YE67TZWNCSIIA"
+  },
+  "OL9OFRKXDPIK": {
+    "amount": 0.66,
+    "timestamp": "2025-09-11T22:32:07.107Z",
+    "txId": "MZMGFVPJZYCJGJASD74LFTDRNLHMIL34AYZIQ5J2FOIMC7F4ZMZQ"
+  }
+}

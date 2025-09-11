@@ -1,0 +1,32 @@
+{
+  "name": "algorand-testnet-contract",
+  "version": "1.0.0",
+  "description": "Minimal Algorand stateful smart contract and deploy workflow for accepting deposits",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "create-account": "ts-node scripts/create_account.ts",
+    "verify-account": "ts-node scripts/verify_account.ts",
+    "deploy": "ts-node scripts/deploy_app.ts",
+    "deposit": "ts-node scripts/send_deposit.ts",
+    "check-balance": "ts-node scripts/check_balance.ts"
+  },
+  "keywords": [
+    "algorand",
+    "smart-contract",
+    "testnet",
+    "deposits"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "algosdk": "^2.7.0",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.3.2"
+  }
+}

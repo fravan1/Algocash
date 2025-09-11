@@ -1,0 +1,12 @@
+#pragma version 6
+
+// Minimal Algorand Stateful Smart Contract - Clear State Program
+// This program handles the clear state transaction when a user opts out
+// of the application. For this minimal contract, we simply approve all
+// clear state transactions.
+
+// Accept all clear state transactions
+// This allows users to opt out of the application and recover their
+// minimum balance requirement
+int 1
+return

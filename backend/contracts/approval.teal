@@ -1,0 +1,68 @@
+#pragma version 6
+
+// Minimal Algorand Stateful Smart Contract - Approval Program
+// This contract provides a simple escrow that can accept deposits
+// and handle basic application lifecycle operations
+
+// Handle application creation
+txn OnCompletion
+int NoOp
+==
+bnz handle_noop
+
+txn OnCompletion
+int OptIn
+==
+bnz handle_optin
+
+txn OnCompletion
+int CloseOut
+==
+bnz handle_closeout
+
+txn OnCompletion
+int UpdateApplication
+==
+bnz handle_update
+
+txn OnCompletion
+int DeleteApplication
+==
+bnz handle_delete
+
+// Default: reject all other operations
+int 0
+return
+
+// Handle NoOp transactions (main application logic)
+handle_noop:
+    // For this minimal contract, we accept all NoOp transactions
+    // In a real application, this would contain the main business logic
+    int 1
+    return
+
+// Handle OptIn transactions (users joining the application)
+handle_optin:
+    // Accept all opt-in transactions
+    int 1
+    return
+
+// Handle CloseOut transactions (users leaving the application)
+handle_closeout:
+    // Accept all close-out transactions
+    int 1
+    return
+
+// Handle UpdateApplication transactions
+handle_update:
+    // For security, we reject update attempts in this minimal contract
+    // In production, you might want to allow updates with proper authorization
+    int 0
+    return
+
+// Handle DeleteApplication transactions
+handle_delete:
+    // For security, we reject delete attempts in this minimal contract
+    // In production, you might want to allow deletion with proper authorization
+    int 0
+    return

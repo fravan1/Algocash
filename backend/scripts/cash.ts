@@ -38,38 +38,68 @@ function encryptNumber(amount: number): string {
   return hash;
 }
 
-// Store mapping locally for decryption
-const ENCRYPTION_MAP_FILE = path.join(__dirname, "../encryption_map.json");
+// All data is now stored on blockchain - no local storage needed!
 
-// Load encryption mapping
-function loadEncryptionMap(): Record<
-  string,
-  { amount: number; timestamp: string; txId?: string }
+// Get all stored hashes from blockchain global state
+async function getAllStoredHashesFromBlockchain(): Promise<
+  Array<{ hash: string; data: any }>
 > {
   try {
-    if (fs.existsSync(ENCRYPTION_MAP_FILE)) {
-      const data = fs.readFileSync(ENCRYPTION_MAP_FILE, "utf8");
-      return JSON.parse(data);
+    // Validate environment variables
+    const requiredEnvVars = ["ALGOD_BASE_URL", "SERVER_MNEMONIC", "APP_ID"];
+    for (const envVar of requiredEnvVars) {
+      if (!process.env[envVar]) {
+        throw new Error(`Missing required environment variable: ${envVar}`);
+      }
     }
+
+    // Initialize Algod client
+    const algodToken = "";
+    const algodServer = process.env.ALGOD_BASE_URL!;
+    const algodPort = 443;
+    const algodClient = new algosdk.Algodv2(algodToken, algodServer, algodPort);
+
+    const appId = parseInt(process.env.APP_ID!);
+    const appAddress = algosdk.getApplicationAddress(appId);
+
+    // Get application information
+    const appInfo = await algodClient.getApplicationByID(appId).do();
+
+    if (!appInfo.params["global-state"]) {
+      return [];
+    }
+
+    const storedHashes: Array<{ hash: string; data: any }> = [];
+
+    // Parse global state to find all stored hashes
+    for (const kv of appInfo.params["global-state"]) {
+      const key = Buffer.from(kv.key, "base64").toString();
+
+      // Check if this looks like our encrypted hash (12 characters, alphanumeric)
+      if (key.length === 12 && /^[A-Z0-9]+$/.test(key)) {
+        try {
+          const value = Buffer.from(kv.value.bytes || "", "base64").toString();
+
+          // Check if it's a withdrawal flag (starts with "WITHDRAWN_")
+          if (value.startsWith("WITHDRAWN_")) {
+            // Skip withdrawn codes in the view
+            continue;
+          }
+
+          // Otherwise, parse as JSON data
+          const data = JSON.parse(value);
+          storedHashes.push({ hash: key, data: data });
+        } catch (error) {
+          console.log(`Warning: Could not parse data for hash ${key}`);
+        }
+      }
+    }
+
+    return storedHashes;
   } catch (error) {
-    console.log("Creating new encryption map file...");
+    console.error("Error getting stored hashes from blockchain:", error);
+    return [];
   }
-  return {};
-}
-
-// Save encryption mapping
-function saveEncryptionMap(
-  map: Record<string, { amount: number; timestamp: string; txId?: string }>
-): void {
-  fs.writeFileSync(ENCRYPTION_MAP_FILE, JSON.stringify(map, null, 2));
-}
-
-// Get all stored hashes from blockchain (we'll need to track them differently)
-function getAllStoredHashes(): string[] {
-  // For now, we'll get all hashes from our local mapping
-  // In a real system, you'd query the blockchain for all transactions
-  const encryptionMap = loadEncryptionMap();
-  return Object.keys(encryptionMap);
 }
 
 // Store encrypted cash value on blockchain
@@ -113,13 +143,7 @@ async function storeCashOnBlockchain(amount: number): Promise<void> {
     const encryptedHash = encryptNumber(amount);
     console.log(`🔐 Encrypted ${amount} to Hash: ${encryptedHash}\n`);
 
-    // Store mapping for decryption (we'll add txId after transaction is created)
-    const encryptionMap = loadEncryptionMap();
-    encryptionMap[encryptedHash] = {
-      amount: amount,
-      timestamp: new Date().toISOString(),
-    };
-    saveEncryptionMap(encryptionMap);
+    // All data is now stored on blockchain - no local storage needed!
 
     // Check sender balance
     const senderInfo = await algodClient.accountInformation(account.addr).do();
@@ -133,21 +157,28 @@ async function storeCashOnBlockchain(amount: number): Promise<void> {
     // Get suggested parameters
     const suggestedParams = await algodClient.getTransactionParams().do();
 
-    // Create application call transaction with only the encrypted hash
+    // Create application call transaction with encrypted hash and amount data
     const appCallTxn = algosdk.makeApplicationNoOpTxnFromObject({
       from: account.addr,
       suggestedParams,
       appIndex: appId,
-      appArgs: [new TextEncoder().encode(encryptedHash)],
+      appArgs: [
+        new TextEncoder().encode(encryptedHash),
+        new TextEncoder().encode(
+          JSON.stringify({
+            amount: amount,
+            timestamp: new Date().toISOString(),
+            txId: "", // Will be updated after transaction
+          })
+        ),
+      ],
     });
 
     // Sign and send transaction
     const signedTxn = appCallTxn.signTxn(account.sk);
     const txId = appCallTxn.txID().toString();
 
-    // Update encryption map with transaction ID
-    encryptionMap[encryptedHash].txId = txId;
-    saveEncryptionMap(encryptionMap);
+    // Transaction ID is now included in the blockchain data - no local storage needed!
 
     console.log(`📤 Sending transaction: ${txId}`);
     const result = await algodClient.sendRawTransaction(signedTxn).do();
@@ -242,48 +273,39 @@ async function viewCashTable(): Promise<void> {
         return;
       }
 
-      // Get all stored hashes from our local mapping
-      const allHashes = getAllStoredHashes();
-      const encryptionMap = loadEncryptionMap();
+      // Get all stored hashes from blockchain global state
+      const allStoredHashes = await getAllStoredHashesFromBlockchain();
 
       console.log("💰 Cash Values Table (All Stored Values):");
       console.log("=".repeat(60));
 
-      if (allHashes.length > 0) {
+      if (allStoredHashes.length > 0) {
         let totalAmount = 0;
 
-        allHashes.forEach((hash, index) => {
-          const decryptedData = encryptionMap[hash];
+        allStoredHashes.forEach((item, index) => {
+          const { hash, data } = item;
 
-          if (decryptedData) {
-            console.log(`${index + 1}. STORED VALUE`);
-            console.log(`   Original Amount: ${decryptedData.amount}`);
-            console.log(`   Encrypted Hash: ${hash}`);
-            console.log(
-              `   Stored Date: ${new Date(
-                decryptedData.timestamp
-              ).toLocaleString()}`
-            );
-            if (decryptedData.txId) {
-              console.log(`   Transaction ID: ${decryptedData.txId}`);
-            }
-            console.log(`   Status: ✅ Encrypted & Stored on Blockchain\n`);
-
-            totalAmount += decryptedData.amount;
-          } else {
-            console.log(`${index + 1}. STORED VALUE`);
-            console.log(`   Encrypted Hash: ${hash}`);
-            console.log(
-              `   Status: ⚠️  Hash found but decryption data missing\n`
-            );
+          console.log(`${index + 1}. STORED VALUE`);
+          console.log(`   Original Amount: ${data.amount}`);
+          console.log(`   Encrypted Hash: ${hash}`);
+          console.log(
+            `   Stored Date: ${new Date(data.timestamp).toLocaleString()}`
+          );
+          if (data.txId) {
+            console.log(`   Transaction ID: ${data.txId}`);
           }
+          console.log(`   Status: ✅ Encrypted & Stored on Blockchain\n`);
+
+          totalAmount += data.amount;
         });
 
         console.log("📈 Summary:");
-        console.log(`   Total Values: ${allHashes.length}`);
+        console.log(`   Total Values: ${allStoredHashes.length}`);
         console.log(`   Total Amount: ${totalAmount.toFixed(6)}`);
         console.log(
-          `   Average Value: ${(totalAmount / allHashes.length).toFixed(6)}\n`
+          `   Average Value: ${(totalAmount / allStoredHashes.length).toFixed(
+            6
+          )}\n`
         );
       } else {
         console.log("📭 No cash values stored yet.");

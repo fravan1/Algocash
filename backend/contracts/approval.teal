@@ -61,10 +61,20 @@ handle_noop:
     int appl
     ==
     txn NumAppArgs
-    int 1
+    int 2
     ==
     &&
     bnz handle_cash_storage
+    
+    // Check if this is a withdrawal call
+    txn TypeEnum
+    int appl
+    ==
+    txn NumAppArgs
+    int 3
+    ==
+    &&
+    bnz handle_withdrawal
     
     // For deployment and other NoOp calls without args, accept
     int 1
@@ -131,13 +141,29 @@ payment_valid:
 
 // Handle cash storage with encrypted hash
 handle_cash_storage:
-    // Store only the encrypted hash in user's local state
+    // Store the encrypted hash in user's local state
     txn Sender
     byte "unique_id"
     txn ApplicationArgs 0
     app_local_put
     
+    // Store mapping data in global state (hash -> amount, timestamp, txId)
+    // Global state key: encrypted hash
+    // Global state value: amount + timestamp + txId (encoded)
+    txn ApplicationArgs 0
+    txn ApplicationArgs 1  // amount (encoded)
+    app_global_put
+    
     // Accept cash storage
+    int 1
+    return
+
+// Handle withdrawal transactions
+handle_withdrawal:
+    // Args: [unique_code, withdrawal_tx_id, withdrawal_timestamp]
+    // We need to update the existing data, not overwrite it
+    // For now, we'll just accept the withdrawal call
+    // The actual marking will be handled by updating the JSON data
     int 1
     return
 

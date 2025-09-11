@@ -1,14 +1,17 @@
 import algosdk from "algosdk";
 import * as dotenv from "dotenv";
+import * as path from "path";
+import * as fs from "fs";
 
-// Load environment variables
-dotenv.config();
+// Explicitly resolve the .env path relative to where you run the script
+const envPath = path.resolve(process.cwd(), ".env");
+dotenv.config({ path: envPath });
 
 /**
- * Send a test deposit to the deployed application address
- * This script sends 1 ALGO from the server account to the application address
+ * Send a deposit to the smart contract using application call with payment
+ * This script sends an application call with a payment transaction attached
  */
-async function sendDeposit() {
+async function sendDepositWithApp() {
   try {
     // Validate environment variables
     const requiredEnvVars = ["ALGOD_BASE_URL", "SERVER_MNEMONIC", "APP_ID"];
@@ -18,7 +21,7 @@ async function sendDeposit() {
       }
     }
 
-    console.log("💰 Starting deposit transaction...\n");
+    console.log("💰 Starting deposit transaction with app call...\n");
 
     // Initialize Algod client (AlgoNode doesn't require API key)
     const algodToken = ""; // AlgoNode doesn't require an API key
@@ -48,7 +51,7 @@ async function sendDeposit() {
       );
     }
 
-    // Check current app balance
+    // Check app balance before
     const appInfo = await algodClient.accountInformation(appAddress).do();
     const appBalanceBefore = appInfo.amount / 1e6;
     console.log(`💰 App balance before: ${appBalanceBefore} ALGO\n`);
@@ -57,23 +60,38 @@ async function sendDeposit() {
     const suggestedParams = await algodClient.getTransactionParams().do();
 
     // Create payment transaction
-    const depositAmount = 1e6; // 1 ALGO in microALGO
+    const depositAmount = 1 * 1e6; // Convert ALGO to microALGO
     const paymentTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
       from: account.addr,
       to: appAddress,
       amount: depositAmount,
       suggestedParams,
-      note: new Uint8Array(
-        Buffer.from("Test deposit to smart contract", "utf8")
-      ),
+      note: new TextEncoder().encode("Deposit to smart contract"),
     });
 
-    // Sign and send transaction
-    const signedTxn = paymentTxn.signTxn(account.sk);
-    const txId = paymentTxn.txID().toString();
+    // Create application call transaction
+    const appCallTxn = algosdk.makeApplicationNoOpTxnFromObject({
+      from: account.addr,
+      suggestedParams,
+      appIndex: appId,
+    });
 
-    console.log(`📤 Sending payment transaction: ${txId}`);
+    // Create transaction group
+    const txnGroup = [appCallTxn, paymentTxn];
+    algosdk.assignGroupID(txnGroup);
 
+    // Sign transactions
+    const signedAppCall = appCallTxn.signTxn(account.sk);
+    const signedPayment = paymentTxn.signTxn(account.sk);
+
+    // Combine signed transactions
+    const signedTxn = new Uint8Array(
+      signedAppCall.length + signedPayment.length
+    );
+    signedTxn.set(signedAppCall, 0);
+    signedTxn.set(signedPayment, signedAppCall.length);
+
+    console.log(`📤 Sending transaction group...`);
     const result = await algodClient.sendRawTransaction(signedTxn).do();
     console.log(`✅ Transaction sent: ${result.txId}\n`);
 
@@ -84,24 +102,22 @@ async function sendDeposit() {
       result.txId,
       4
     );
-
     console.log("🎉 Deposit confirmed!\n");
-    console.log("📋 Transaction Details:");
+
+    // Check app balance after
+    const appInfoAfter = await algodClient.accountInformation(appAddress).do();
+    const appBalanceAfter = appInfoAfter.amount / 1e6;
+    const balanceIncrease = appBalanceAfter - appBalanceBefore;
+
+    console.log(`📋 Transaction Details:`);
     console.log(`   Transaction ID: ${result.txId}`);
     console.log(`   Confirmed Round: ${confirmedTxn["confirmed-round"]}`);
     console.log(`   Amount: 1 ALGO\n`);
 
-    // Check updated app balance
-    const updatedAppInfo = await algodClient
-      .accountInformation(appAddress)
-      .do();
-    const appBalanceAfter = updatedAppInfo.amount / 1e6;
     console.log(`💰 App balance after: ${appBalanceAfter} ALGO`);
-    console.log(
-      `📈 Balance increase: ${appBalanceAfter - appBalanceBefore} ALGO\n`
-    );
+    console.log(`📈 Balance increase: ${balanceIncrease} ALGO\n`);
 
-    console.log("🔗 Explorer Links:");
+    console.log(`🔗 Explorer Links:`);
     console.log(
       `   Transaction: https://testnet.algoexplorer.io/tx/${result.txId}`
     );
@@ -109,15 +125,14 @@ async function sendDeposit() {
       `   Application: https://testnet.algoexplorer.io/address/${appAddress}\n`
     );
 
-    console.log("✅ Deposit test completed successfully!");
     console.log(
-      "   The application address has received the deposit and the balance has increased."
+      "✅ Deposit test completed successfully!\n   The application address has received the deposit and the balance has increased."
     );
   } catch (error) {
-    console.error("❌ Error sending deposit:", error);
+    console.error("❌ Error:", error);
     process.exit(1);
   }
 }
 
 // Run the script
-sendDeposit();
+sendDepositWithApp();

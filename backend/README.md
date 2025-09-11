@@ -1,28 +1,33 @@
-# Algorand TestNet Smart Contract & Deploy Flow
+# Algorand Digital Currency Minting Contract
 
-A minimal Algorand stateful smart contract and companion deploy/test workflow that provides an on-chain application address (escrow) and demonstrates depositing ALGO to that address on TestNet.
+A smart contract that allows users to deposit ALGO and mint digital currency. Users can mint up to their deposited amount, with the contract tracking balances and used amounts.
 
 ## 🎯 Overview
 
 This project demonstrates:
 
-- A simple stateful smart contract that can accept deposits
-- TypeScript scripts for account generation, deployment, and testing
-- Complete workflow from contract creation to deposit verification
-- Integration with Algorand TestNet using PureStake API
+- A smart contract that accepts ALGO deposits and tracks user balances
+- Digital currency minting functionality with balance validation
+- User state management (deposited amount, used amount, remaining balance)
+- TypeScript scripts for deployment, testing, and interaction
+- Complete workflow from contract creation to currency minting
+- Integration with Algorand TestNet using AlgoNode API
 
 ## 📁 Project Structure
 
 ```
 backend/
 ├── contracts/
-│   ├── approval.teal      # Main application logic
+│   ├── approval.teal      # Main application logic with minting
 │   └── clear.teal         # Clear state program
 ├── scripts/
 │   ├── create_account.ts  # Generate TestNet account
 │   ├── deploy_app.ts      # Compile & deploy contract
 │   ├── send_deposit.ts    # Send test payment to app
-│   └── check_balance.ts   # Check app balance
+│   ├── check_balance.ts   # Check app balance
+│   ├── opt_in.ts          # Opt into the application
+│   ├── mint_currency.ts   # Mint digital currency
+│   └── check_user_state.ts # Check user's state and balances
 ├── .env.example           # Environment variables template
 ├── package.json           # Dependencies and scripts
 └── README.md             # This file
@@ -79,7 +84,19 @@ This will:
 - Print the `APP_ID` and application address
 - Add the `APP_ID` to your `.env` file
 
-### 6. Test Deposit
+### 6. Opt Into Application
+
+```bash
+npm run opt-in
+```
+
+This will:
+
+- Opt your account into the smart contract
+- Initialize your local state (balance: 0, used: 0)
+- Display transaction details and explorer links
+
+### 7. Test Deposit
 
 ```bash
 npm run deposit
@@ -91,7 +108,31 @@ This will:
 - Wait for confirmation
 - Display transaction details and explorer links
 
-### 7. Check Balance (Optional)
+### 8. Check User State
+
+```bash
+npm run check-user-state
+```
+
+This will:
+
+- Display your deposited balance, used amount, and remaining balance
+- Show how much digital currency you can mint
+- Display contract information and explorer links
+
+### 9. Mint Digital Currency
+
+```bash
+npm run mint 0.5
+```
+
+This will:
+
+- Mint 0.5 digital currency (up to your remaining balance)
+- Update your used amount
+- Display transaction details and explorer links
+
+### 10. Check Balance (Optional)
 
 ```bash
 npm run check-balance
@@ -104,12 +145,15 @@ This will:
 
 ## 📋 Available Scripts
 
-| Script          | Command                  | Description                      |
-| --------------- | ------------------------ | -------------------------------- |
-| Create Account  | `npm run create-account` | Generate new TestNet account     |
-| Deploy Contract | `npm run deploy`         | Deploy smart contract to TestNet |
-| Send Deposit    | `npm run deposit`        | Send test payment to app address |
-| Check Balance   | `npm run check-balance`  | Check application balance        |
+| Script           | Command                    | Description                      |
+| ---------------- | -------------------------- | -------------------------------- |
+| Create Account   | `npm run create-account`   | Generate new TestNet account     |
+| Deploy Contract  | `npm run deploy`           | Deploy smart contract to TestNet |
+| Opt In           | `npm run opt-in`           | Opt into the smart contract      |
+| Send Deposit     | `npm run deposit`          | Send test payment to app address |
+| Check User State | `npm run check-user-state` | Check user's balances and state  |
+| Mint Currency    | `npm run mint <amount>`    | Mint digital currency            |
+| Check Balance    | `npm run check-balance`    | Check application balance        |
 
 ## 🔧 Environment Variables
 

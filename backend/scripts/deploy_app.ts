@@ -1,10 +1,26 @@
 import algosdk from "algosdk";
-import * as dotenv from "dotenv";
+
 import * as fs from "fs";
 import * as path from "path";
+import * as dotenv from "dotenv";
 
-// Load environment variables
-dotenv.config();
+// Explicitly resolve the .env path relative to where you run the script
+const envPath = path.resolve(process.cwd(), ".env");
+
+// Debug: print CWD and check file existence
+console.log("Running from CWD:", process.cwd());
+console.log(".env path resolved to:", envPath);
+console.log(".env exists?:", fs.existsSync(envPath));
+
+dotenv.config({ path: envPath });
+
+// Debug: show loaded values
+console.log("ALGOD_BASE_URL:", process.env.ALGOD_BASE_URL);
+console.log(
+  "SERVER_MNEMONIC:",
+  !!process.env.SERVER_MNEMONIC ? "[present]" : "[missing]"
+);
+console.log("APP_ID:", process.env.APP_ID ?? "[missing]");
 
 /**
  * Deploy the Algorand stateful smart contract to TestNet
@@ -80,7 +96,7 @@ async function deployApp() {
       numGlobalByteSlices: 0,
       numGlobalInts: 0,
       numLocalByteSlices: 0,
-      numLocalInts: 0,
+      numLocalInts: 2, // User balance and used amount
     });
 
     // Sign and send transaction

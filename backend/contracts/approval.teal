@@ -1,8 +1,14 @@
 #pragma version 6
 
-// Minimal Algorand Stateful Smart Contract - Approval Program
-// This contract provides a simple escrow that can accept deposits
-// and handle basic application lifecycle operations
+// Digital Currency Minting Contract - Approval Program
+// This contract allows users to deposit ALGO and mint digital currency
+// Users can mint up to their deposited amount
+
+// Handle payment transactions (deposits) - but we'll handle this differently
+// txn TypeEnum
+// int pay
+// ==
+// bnz handle_payment
 
 // Handle application creation
 txn OnCompletion
@@ -36,14 +42,159 @@ return
 
 // Handle NoOp transactions (main application logic)
 handle_noop:
-    // For this minimal contract, we accept all NoOp transactions
-    // In a real application, this would contain the main business logic
+    // Check if this is an application call with arguments (mint)
+    txn TypeEnum
+    int appl
+    ==
+    txn NumAppArgs
+    int 1
+    ==
+    &&
+    bnz handle_mint
+    
+    // Check if this is an application call with payment (deposit)
+    txn TypeEnum
+    int appl
+    ==
+    txn NumAppArgs
+    int 0
+    ==
+    &&
+    global GroupSize
+    int 2
+    ==
+    &&
+    bnz check_deposit_payment
+    
+    // If not a deposit, continue to other checks
+    b check_other_calls
+    
+check_deposit_payment:
+    gtxn 1 TypeEnum
+    int pay
+    ==
+    bnz handle_deposit
+    b check_other_calls
+    
+check_other_calls:
+    
+    // For deployment and other NoOp calls without args, accept
+    int 1
+    return
+
+// Handle deposit transactions (app call with payment)
+handle_deposit:
+    // Verify the payment is to the application
+    gtxn 1 Receiver
+    global CurrentApplicationAddress
+    ==
+    bnz deposit_valid
+    int 0
+    return
+    
+deposit_valid:
+    // Update user's balance in local state
+    txn Sender
+    byte "balance"
+    txn Sender
+    byte "balance"
+    app_local_get
+    gtxn 1 Amount
+    +
+    app_local_put
+    
+    // Accept deposit
+    int 1
+    return
+
+// Handle payment transactions (deposits to the app)
+handle_payment:
+    // Verify this is a payment to the application
+    txn Receiver
+    global CurrentApplicationAddress
+    ==
+    bnz payment_valid
+    int 0
+    return
+    
+payment_valid:
+    // Update user's balance in local state
+    txn Sender
+    byte "balance"
+    txn Sender
+    byte "balance"
+    app_local_get
+    txn Amount
+    +
+    app_local_put
+    
+    // Accept payment
+    int 1
+    return
+
+
+// Handle mint transactions (application call with amount)
+handle_mint:
+    // Get mint amount from application arguments
+    txn ApplicationArgs 0
+    btoi
+    store 0  // Store mint amount
+    
+    // Get user's current balance
+    txn Sender
+    byte "balance"
+    app_local_get
+    store 1  // Store current balance
+    
+    // Get user's used amount
+    txn Sender
+    byte "used"
+    app_local_get
+    store 2  // Store used amount
+    
+    // Calculate remaining balance
+    load 1  // Current balance
+    load 2  // Used amount
+    -
+    store 3  // Store remaining balance
+    
+    // Check if mint amount <= remaining balance
+    load 0  // Mint amount
+    load 3  // Remaining balance
+    <=
+    bnz mint_valid
+    int 0
+    return
+    
+mint_valid:
+    // Update used amount
+    txn Sender
+    byte "used"
+    load 2  // Current used amount
+    load 0  // Mint amount
+    +
+    app_local_put
+    
+    // Accept mint
     int 1
     return
 
 // Handle OptIn transactions (users joining the application)
 handle_optin:
-    // Accept all opt-in transactions
+    // Initialize user's local state
+    // Balance starts at 0
+    txn Sender
+    byte "balance"  // Key for user balance
+    int 0  // Initial balance
+    app_local_put
+    
+    // Used amount starts at 0
+    txn Sender
+    byte "used"  // Key for used amount
+    int 0  // Initial used amount
+    app_local_put
+    
+    // Accept opt-in
     int 1
     return
 
@@ -55,14 +206,12 @@ handle_closeout:
 
 // Handle UpdateApplication transactions
 handle_update:
-    // For security, we reject update attempts in this minimal contract
-    // In production, you might want to allow updates with proper authorization
+    // For security, we reject update attempts
     int 0
     return
 
 // Handle DeleteApplication transactions
 handle_delete:
-    // For security, we reject delete attempts in this minimal contract
-    // In production, you might want to allow deletion with proper authorization
+    // For security, we reject delete attempts
     int 0
     return

@@ -166,6 +166,89 @@ export class AlgorandService {
     }
   }
 
+  // Mint digital currency
+  async mintCurrency(mnemonic: string, amount: number): Promise<string> {
+    try {
+      const account = this.getAccountFromMnemonic(mnemonic);
+
+      // Get suggested parameters
+      const suggestedParams = await this.algodClient
+        .getTransactionParams()
+        .do();
+
+      // Create NoOp transaction with mint amount as argument
+      const noOpTxn = algosdk.makeApplicationNoOpTxnFromObject({
+        from: account.addr,
+        suggestedParams,
+        appIndex: this.appId,
+        appArgs: [textEncoder.encode(amount.toString())],
+      });
+
+      // Sign and send transaction
+      const signedTxn = noOpTxn.signTxn(account.sk);
+      const txId = noOpTxn.txID().toString();
+
+      const result = await this.algodClient.sendRawTransaction(signedTxn).do();
+
+      // Wait for confirmation
+      await algosdk.waitForConfirmation(this.algodClient, result.txId, 4);
+
+      return result.txId;
+    } catch (error) {
+      console.error("Error minting currency:", error);
+      throw error;
+    }
+  }
+
+  // Get user's local state in the smart contract
+  async getUserState(mnemonic: string): Promise<{
+    balance: number;
+    used: number;
+    remaining: number;
+  }> {
+    try {
+      const account = this.getAccountFromMnemonic(mnemonic);
+
+      // Get account information
+      const accountInfo = await this.algodClient
+        .accountInformation(account.addr)
+        .do();
+
+      // Find local state for this app
+      const appLocalState = accountInfo["apps-local-state"]?.find(
+        (app: any) => app.id === this.appId
+      );
+
+      if (!appLocalState) {
+        return { balance: 0, used: 0, remaining: 0 };
+      }
+
+      // Parse local state
+      let balance = 0;
+      let used = 0;
+
+      if (appLocalState["key-value"]) {
+        for (const kv of appLocalState["key-value"]) {
+          const key = textDecoder.decode(new Uint8Array(kv.key));
+          const value = kv.value.uint || 0;
+
+          if (key === "balance") {
+            balance = value / 1e6; // Convert from microALGO to ALGO
+          } else if (key === "used") {
+            used = value / 1e6; // Convert from microALGO to ALGO
+          }
+        }
+      }
+
+      const remaining = balance - used;
+
+      return { balance, used, remaining };
+    } catch (error) {
+      console.error("Error getting user state:", error);
+      throw error;
+    }
+  }
+
   // Get application info
   getAppInfo() {
     return {

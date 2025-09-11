@@ -1,11 +1,16 @@
 // src/App.tsx
 import React, { useState, useEffect } from "react";
 import ContractInterface from "./components/ContractInterface";
+import CashInterface from "./components/CashInterface";
+import WithdrawalInterface from "./components/WithdrawalInterface";
+
+type ActiveTab = "contract" | "cash" | "withdrawal";
 
 const App: React.FC = () => {
   const [userMnemonic, setUserMnemonic] = useState<string>("");
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
+  const [activeTab, setActiveTab] = useState<ActiveTab>("cash");
 
   // Load mnemonic from environment variables on component mount
   useEffect(() => {
@@ -35,16 +40,29 @@ const App: React.FC = () => {
     setError("");
   };
 
+  const renderActiveComponent = () => {
+    switch (activeTab) {
+      case "contract":
+        return <ContractInterface userMnemonic={userMnemonic} />;
+      case "cash":
+        return <CashInterface userMnemonic={userMnemonic} />;
+      case "withdrawal":
+        return <WithdrawalInterface userMnemonic={userMnemonic} />;
+      default:
+        return <CashInterface userMnemonic={userMnemonic} />;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500">
       <div className="container mx-auto px-4 py-8">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-white mb-4">
-            Algorand Smart Contract Interface
+            💰 AlgoCash - Smart Contract Platform
           </h1>
           <p className="text-lg text-white opacity-90">
-            Interact with your deployed Algorand smart contract using your seed
-            phrase
+            Store, manage, and withdraw cash using encrypted unique codes on
+            Algorand blockchain
           </p>
         </div>
 
@@ -52,7 +70,7 @@ const App: React.FC = () => {
           <div className="max-w-2xl mx-auto">
             <div className="bg-white rounded-lg shadow-lg p-8">
               <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">
-                Wallet Connection
+                🔐 Wallet Connection
               </h2>
 
               <div className="space-y-4">
@@ -105,6 +123,43 @@ VITE_ALGOD_BASE_URL=https://testnet-api.algonode.cloud`}
           </div>
         ) : (
           <div>
+            {/* Navigation Tabs */}
+            <div className="flex justify-center mb-8">
+              <div className="bg-white rounded-lg shadow-lg p-2 flex space-x-2">
+                <button
+                  onClick={() => setActiveTab("cash")}
+                  className={`px-6 py-3 rounded-lg font-semibold transition-all duration-200 ${
+                    activeTab === "cash"
+                      ? "bg-blue-600 text-white shadow-md"
+                      : "text-gray-600 hover:bg-gray-100"
+                  }`}
+                >
+                  💰 Cash Storage
+                </button>
+                <button
+                  onClick={() => setActiveTab("withdrawal")}
+                  className={`px-6 py-3 rounded-lg font-semibold transition-all duration-200 ${
+                    activeTab === "withdrawal"
+                      ? "bg-green-600 text-white shadow-md"
+                      : "text-gray-600 hover:bg-gray-100"
+                  }`}
+                >
+                  💸 Withdrawal
+                </button>
+                <button
+                  onClick={() => setActiveTab("contract")}
+                  className={`px-6 py-3 rounded-lg font-semibold transition-all duration-200 ${
+                    activeTab === "contract"
+                      ? "bg-purple-600 text-white shadow-md"
+                      : "text-gray-600 hover:bg-gray-100"
+                  }`}
+                >
+                  🔧 Contract
+                </button>
+              </div>
+            </div>
+
+            {/* Disconnect Button */}
             <div className="text-center mb-6">
               <button
                 onClick={handleDisconnect}
@@ -113,14 +168,16 @@ VITE_ALGOD_BASE_URL=https://testnet-api.algonode.cloud`}
                 Disconnect Wallet
               </button>
             </div>
-            <ContractInterface userMnemonic={userMnemonic} />
+
+            {/* Active Component */}
+            {renderActiveComponent()}
           </div>
         )}
 
         {/* Footer */}
         <div className="text-center mt-12">
           <p className="text-white opacity-75 text-sm">
-            Built with React, TypeScript, and Algorand SDK
+            Built with React, TypeScript, and Algorand SDK | TestNet Only
           </p>
         </div>
       </div>

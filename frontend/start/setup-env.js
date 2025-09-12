@@ -13,10 +13,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const envContent = `# User Configuration
-VITE_USER_MNEMONIC=stove sunset control drive donor render moral ask issue casual shy poverty woman enter bar evidence ranch rude obtain festival wide horror armor absent pattern
-
+VITE_USER_MNEMONIC=
 # Contract Configuration
-VITE_APP_ID=745696331
+VITE_APP_ID=
 
 # Network Configuration
 VITE_ALGOD_BASE_URL=https://testnet-api.algonode.cloud

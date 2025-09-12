@@ -14,9 +14,9 @@ dotenv.config({ path: envPath });
  * 2. Decrypt stored hashes to show original amounts
  */
 
-// Validate amount is between 0.1 and 0.9
+// Validate amount is 1, 2, 5, or 10 ALGO
 function validateAmount(amount: number): boolean {
-  return amount >= 0.1 && amount <= 0.9;
+  return [1, 2, 5, 10].includes(amount);
 }
 
 // Encrypt number to unique ID (hash)
@@ -115,7 +115,7 @@ async function storeCashOnBlockchain(amount: number): Promise<void> {
 
     // Validate amount
     if (!validateAmount(amount)) {
-      throw new Error("Amount must be between 0.1 and 0.9");
+      throw new Error("Amount must be 1, 2, 5, or 10 ALGO");
     }
 
     console.log(
@@ -341,7 +341,7 @@ async function main() {
     console.log("");
     console.log("Usage:");
     console.log(
-      "  npm run cash <amount>       - Encrypt and store cash value (0.1-0.9) on blockchain"
+      "  npm run cash <amount>       - Encrypt and store cash value (1,2,5,10) on blockchain"
     );
     console.log(
       "  npm run cash view           - View all stored cash values (decrypted) from blockchain"
@@ -349,10 +349,10 @@ async function main() {
     console.log("");
     console.log("Examples:");
     console.log(
-      "  npm run cash 0.5            - Encrypt 0.5 and store hash on blockchain"
+      "  npm run cash 1              - Encrypt 1 ALGO and store hash on blockchain"
     );
     console.log(
-      "  npm run cash 0.3            - Encrypt 0.3 and store hash on blockchain"
+      "  npm run cash 5              - Encrypt 5 ALGO and store hash on blockchain"
     );
     console.log(
       "  npm run cash view           - View decrypted values from blockchain"
@@ -372,7 +372,7 @@ async function main() {
   // Otherwise, treat first argument as amount to store
   const amount = parseFloat(firstArg);
   if (isNaN(amount)) {
-    console.log("❌ Invalid amount. Please enter a number between 0.1 and 0.9");
+    console.log("❌ Invalid amount. Please enter 1, 2, 5, or 10");
     console.log("Usage: npm run cash <amount>");
     return;
   }

@@ -84,13 +84,10 @@ const WithdrawalInterface: React.FC<WithdrawalInterfaceProps> = ({
         return;
       }
 
-      // Validate address format
-      try {
-        algorandService.getAccountFromMnemonic(destinationAddress);
-        setMessage("❌ Please enter a valid Algorand address, not a mnemonic");
+      // Basic address validation - just check if it's not empty
+      if (destinationAddress.trim().length < 10) {
+        setMessage("❌ Please enter a valid Algorand address");
         return;
-      } catch {
-        // This is expected - we want it to fail for mnemonics
       }
 
       setLoading(true);
@@ -144,28 +141,28 @@ const WithdrawalInterface: React.FC<WithdrawalInterfaceProps> = ({
   );
 
   return (
-    <div className="max-w-6xl mx-auto p-6 bg-white rounded-lg shadow-lg">
+    <div className="max-w-6xl mx-auto p-6">
       <div className="mb-6">
-        <h2 className="text-3xl font-bold text-gray-800 mb-4">
-          💸 Withdrawal System
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">
+          Withdrawal System
         </h2>
         <p className="text-gray-600 mb-6">
           Withdraw stored cash using unique codes to any Algorand address
         </p>
 
         {/* User Balance */}
-        <div className="bg-green-50 p-4 rounded-lg mb-6">
-          <h3 className="font-semibold text-green-800 mb-2">
+        <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6 shadow-sm">
+          <h3 className="font-semibold text-gray-900 mb-2">
             Your Account Balance
           </h3>
-          <p className="text-2xl font-bold text-green-700">
+          <p className="text-2xl font-bold text-green-600">
             {userBalance.toFixed(4)} ALGO
           </p>
         </div>
 
         {/* Withdrawal Form */}
-        <div className="bg-blue-50 p-6 rounded-lg mb-6">
-          <h3 className="font-semibold text-blue-800 mb-4 text-xl">
+        <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6 shadow-sm">
+          <h3 className="font-semibold text-gray-900 mb-4 text-lg">
             Process Withdrawal
           </h3>
 
@@ -181,12 +178,12 @@ const WithdrawalInterface: React.FC<WithdrawalInterfaceProps> = ({
                   value={uniqueCode}
                   onChange={(e) => setUniqueCode(e.target.value)}
                   placeholder="Enter unique code (e.g., ABC123XYZ789)"
-                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
                 <button
                   onClick={handleVerifyCode}
                   disabled={loading || !uniqueCode.trim()}
-                  className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
                 >
                   {loading ? "Verifying..." : "Verify"}
                 </button>
@@ -227,7 +224,7 @@ const WithdrawalInterface: React.FC<WithdrawalInterfaceProps> = ({
                 value={destinationAddress}
                 onChange={(e) => setDestinationAddress(e.target.value)}
                 placeholder="Enter Algorand address (e.g., 53FIEZ4Z5YUX67HYKTEXNOD4FFAK542RZZJ47H4YNDUBJWUK5FUA44GONY)"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
               />
             </div>
 
@@ -239,86 +236,63 @@ const WithdrawalInterface: React.FC<WithdrawalInterfaceProps> = ({
                 !verificationResult?.valid ||
                 !destinationAddress.trim()
               }
-              className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-lg"
+              className="w-full px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
             >
               {loading ? "Processing..." : "Withdraw"}
             </button>
           </div>
 
-          <p className="text-sm text-blue-600 mt-4">
-            💡 Verify your unique code first, then enter the destination address
-            to withdraw
+          <p className="text-sm text-gray-600 mt-4">
+            Verify your unique code first, then enter the destination address to withdraw
           </p>
 
-          {/* Address Help Section */}
-          <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <h4 className="font-semibold text-yellow-800 mb-2">
-              ⚠️ Important: Address Requirements
-            </h4>
-            <ul className="text-sm text-yellow-700 space-y-1">
-              <li>• Destination address must exist on Algorand TestNet</li>
-              <li>• Address must have at least 0.1 ALGO balance</li>
-              <li>
-                • Use the{" "}
-                <a
-                  href="https://testnet.algoexplorer.io/dispenser"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline"
-                >
-                  TestNet Faucet
-                </a>{" "}
-                to fund new addresses
-              </li>
-              <li>
-                • Your own address:{" "}
-                <code className="bg-yellow-100 px-1 rounded">
-                  {algorandService.getAccountFromMnemonic(userMnemonic).addr}
-                </code>
-              </li>
-            </ul>
+          {/* Simple Address Help */}
+          <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+            <p className="text-sm text-gray-700">
+              Enter any Algorand address to receive the withdrawal
+            </p>
           </div>
         </div>
 
         {/* Summary */}
-        <div className="bg-purple-50 p-4 rounded-lg mb-6">
-          <h3 className="font-semibold text-purple-800 mb-2">
-            📊 Withdrawal Summary
+        <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6 shadow-sm">
+          <h3 className="font-semibold text-gray-900 mb-4">
+            Withdrawal Summary
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-purple-700">
+            <div className="text-center p-3 bg-gray-50 rounded-lg">
+              <p className="text-xl font-bold text-gray-900">
                 {withdrawalHistory.length}
               </p>
-              <p className="text-sm text-purple-600">Total Withdrawals</p>
+              <p className="text-sm text-gray-600">Total Withdrawals</p>
             </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-purple-700">
+            <div className="text-center p-3 bg-gray-50 rounded-lg">
+              <p className="text-xl font-bold text-gray-900">
                 {totalWithdrawn.toFixed(4)}
               </p>
-              <p className="text-sm text-purple-600">Total Withdrawn (ALGO)</p>
+              <p className="text-sm text-gray-600">Total Withdrawn (ALGO)</p>
             </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-purple-700">
+            <div className="text-center p-3 bg-gray-50 rounded-lg">
+              <p className="text-xl font-bold text-gray-900">
                 {withdrawalHistory.length > 0
                   ? (totalWithdrawn / withdrawalHistory.length).toFixed(4)
                   : "0"}
               </p>
-              <p className="text-sm text-purple-600">Average Withdrawal</p>
+              <p className="text-sm text-gray-600">Average Withdrawal</p>
             </div>
           </div>
         </div>
 
         {/* Withdrawal History */}
-        <div className="bg-gray-50 p-6 rounded-lg">
+        <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="font-semibold text-gray-800 text-xl">
-              📋 Withdrawal History
+            <h3 className="font-semibold text-gray-900 text-lg">
+              Withdrawal History
             </h3>
             <button
               onClick={loadData}
               disabled={loading}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
             >
               Refresh
             </button>
@@ -409,8 +383,8 @@ const WithdrawalInterface: React.FC<WithdrawalInterfaceProps> = ({
 
         {/* Messages */}
         {message && (
-          <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <p className="text-yellow-800 text-sm">{message}</p>
+          <div className="mt-6 p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
+            <p className="text-gray-800 text-sm">{message}</p>
             {lastTxId && (
               <a
                 href={algorandService.getTransactionUrl(lastTxId)}

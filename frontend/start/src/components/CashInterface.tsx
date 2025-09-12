@@ -88,10 +88,10 @@ const CashInterface: React.FC<CashInterfaceProps> = ({ userMnemonic }) => {
   const totalStored = cashTransactions.reduce((sum, tx) => sum + tx.amount, 0);
 
   return (
-    <div className="max-w-6xl mx-auto p-6 bg-white rounded-lg shadow-lg">
+    <div className="max-w-6xl mx-auto p-6">
       <div className="mb-6">
-        <h2 className="text-3xl font-bold text-gray-800 mb-4">
-          💰 Cash Storage System
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">
+          Cash Storage System
         </h2>
         <p className="text-gray-600 mb-6">
           Store amounts between 0.1-0.9 ALGO with unique encrypted codes on the
@@ -99,18 +99,18 @@ const CashInterface: React.FC<CashInterfaceProps> = ({ userMnemonic }) => {
         </p>
 
         {/* User Balance */}
-        <div className="bg-green-50 p-4 rounded-lg mb-6">
-          <h3 className="font-semibold text-green-800 mb-2">
+        <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6 shadow-sm">
+          <h3 className="font-semibold text-gray-900 mb-2">
             Your Account Balance
           </h3>
-          <p className="text-2xl font-bold text-green-700">
+          <p className="text-2xl font-bold text-green-600">
             {userBalance.toFixed(4)} ALGO
           </p>
         </div>
 
         {/* Store Cash Section */}
-        <div className="bg-blue-50 p-6 rounded-lg mb-6">
-          <h3 className="font-semibold text-blue-800 mb-4 text-xl">
+        <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6 shadow-sm">
+          <h3 className="font-semibold text-gray-900 mb-4 text-lg">
             Store Cash
           </h3>
           <div className="flex gap-4 items-end">
@@ -123,7 +123,7 @@ const CashInterface: React.FC<CashInterfaceProps> = ({ userMnemonic }) => {
                 value={cashAmount}
                 onChange={(e) => setCashAmount(e.target.value)}
                 placeholder="0.5"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 step="0.1"
                 min="0.1"
                 max="0.9"
@@ -132,40 +132,39 @@ const CashInterface: React.FC<CashInterfaceProps> = ({ userMnemonic }) => {
             <button
               onClick={handleStoreCash}
               disabled={loading}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-lg"
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
             >
               {loading ? "Storing..." : "Store Cash"}
             </button>
           </div>
-          <p className="text-sm text-blue-600 mt-2">
-            💡 This will generate a unique encrypted code and store it on the
-            blockchain
+          <p className="text-sm text-gray-600 mt-2">
+            This will generate a unique encrypted code and store it on the blockchain
           </p>
         </div>
 
         {/* Summary */}
-        <div className="bg-purple-50 p-4 rounded-lg mb-6">
-          <h3 className="font-semibold text-purple-800 mb-2">
-            📊 Storage Summary
+        <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6 shadow-sm">
+          <h3 className="font-semibold text-gray-900 mb-4">
+            Storage Summary
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-purple-700">
+            <div className="text-center p-3 bg-gray-50 rounded-lg">
+              <p className="text-xl font-bold text-gray-900">
                 {cashTransactions.length}
               </p>
-              <p className="text-sm text-purple-600">Total Stored</p>
+              <p className="text-sm text-gray-600">Total Stored</p>
             </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-purple-700">
+            <div className="text-center p-3 bg-gray-50 rounded-lg">
+              <p className="text-xl font-bold text-gray-900">
                 {totalStored.toFixed(4)}
               </p>
-              <p className="text-sm text-purple-600">Total Amount (ALGO)</p>
+              <p className="text-sm text-gray-600">Total Amount (ALGO)</p>
             </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-purple-700">
+            <div className="text-center p-3 bg-gray-50 rounded-lg">
+              <p className="text-xl font-bold text-gray-900">
                 {cashTransactions.filter((tx) => !tx.txId).length}
               </p>
-              <p className="text-sm text-purple-600">
+              <p className="text-sm text-gray-600">
                 Available for Withdrawal
               </p>
             </div>
@@ -173,15 +172,15 @@ const CashInterface: React.FC<CashInterfaceProps> = ({ userMnemonic }) => {
         </div>
 
         {/* Cash Transactions Table */}
-        <div className="bg-gray-50 p-6 rounded-lg">
+        <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="font-semibold text-gray-800 text-xl">
-              💼 Stored Cash Values
+            <h3 className="font-semibold text-gray-900 text-lg">
+              Stored Cash Values
             </h3>
             <button
               onClick={loadData}
               disabled={loading}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
             >
               Refresh
             </button>
@@ -266,8 +265,8 @@ const CashInterface: React.FC<CashInterfaceProps> = ({ userMnemonic }) => {
 
         {/* Messages */}
         {message && (
-          <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <p className="text-yellow-800 text-sm">{message}</p>
+          <div className="mt-6 p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
+            <p className="text-gray-800 text-sm">{message}</p>
             {lastTxId && (
               <a
                 href={algorandService.getTransactionUrl(lastTxId)}

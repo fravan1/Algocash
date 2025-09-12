@@ -247,13 +247,13 @@ export class AlgorandService {
     return {
       appId: this.appId,
       appAddress: this.appAddress,
-      explorerUrl: `https://testnet.algoexplorer.io/address/${this.appAddress}`,
+      explorerUrl: `https://testnet.explorer.perawallet.app/address/${this.appAddress}`,
     };
   }
 
   // Get transaction explorer URL
   getTransactionUrl(txId: string): string {
-    return `https://testnet.algoexplorer.io/tx/${txId}`;
+    return `https://testnet.explorer.perawallet.app/tx/${txId}`;
   }
 
   // Check if user has opted into the application
@@ -300,8 +300,8 @@ export class AlgorandService {
       const account = this.getAccountFromMnemonic(mnemonic);
 
       // Validate amount
-      if (amount < 0.1 || amount > 0.9) {
-        throw new Error("Amount must be between 0.1 and 0.9 ALGO");
+      if (![1, 2, 5, 10].includes(amount)) {
+        throw new Error("Amount must be 1, 2, 5, or 10 ALGO");
       }
 
       // Generate encrypted hash

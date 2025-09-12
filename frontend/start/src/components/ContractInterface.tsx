@@ -14,7 +14,7 @@ const QRCodeComponent: React.FC<{ url: string; isUsed: boolean }> = ({
     const generateQR = async () => {
       try {
         const qrCodeDataUrl = await QRCode.toDataURL(url, {
-          width: 80,
+          width: 120,
           margin: 1,
           color: {
             dark: isUsed ? "#6B7280" : "#1F2937",
@@ -32,20 +32,20 @@ const QRCodeComponent: React.FC<{ url: string; isUsed: boolean }> = ({
 
   return (
     <div
-      className={`w-20 h-20 rounded-lg border-2 ${
+      className={`w-28 h-28 rounded-lg border-2 ${
         isUsed ? "border-gray-300 bg-gray-100" : "border-gray-200 bg-white"
       } flex items-center justify-center shadow-sm`}
     >
       {qrDataUrl ? (
-        <img src={qrDataUrl} alt="QR Code" className="w-16 h-16 rounded" />
+        <img src={qrDataUrl} alt="QR Code" className="w-24 h-24 rounded" />
       ) : (
         <div
-          className={`w-16 h-16 rounded ${
+          className={`w-24 h-24 rounded ${
             isUsed ? "bg-gray-200" : "bg-gray-100"
           } flex items-center justify-center`}
         >
           <div
-            className={`w-8 h-8 ${
+            className={`w-12 h-12 ${
               isUsed ? "bg-gray-300" : "bg-gray-200"
             } rounded`}
           ></div>
@@ -611,7 +611,7 @@ const ContractInterface: React.FC<ContractInterfaceProps> = ({
               Your Minted Digital Notes
             </h3>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
               {digitalNotes.map((note) => {
                 const isUsed = note.status !== "active";
                 const qrUrl = `https://algo.cptr.app/?id=${note.id}`;
@@ -623,12 +623,18 @@ const ContractInterface: React.FC<ContractInterfaceProps> = ({
                       isUsed ? "opacity-60" : ""
                     }`}
                   >
-                    {/* Digital Note Card */}
+                    {/* Digital Note Card - Currency Style */}
                     <div
-                      className={`relative w-full h-64 rounded-xl shadow-lg border-2 ${
+                      className={`relative w-full h-80 rounded-lg shadow-xl border-4 ${
                         isUsed
-                          ? "bg-gradient-to-br from-gray-100 to-gray-200 border-gray-300"
-                          : "bg-gradient-to-br from-blue-50 to-indigo-100 border-blue-200"
+                          ? "bg-gradient-to-br from-gray-100 to-gray-200 border-gray-400"
+                          : note.amount === 1
+                          ? "bg-gradient-to-br from-green-50 to-green-100 border-green-300"
+                          : note.amount === 2
+                          ? "bg-gradient-to-br from-blue-50 to-blue-100 border-blue-300"
+                          : note.amount === 5
+                          ? "bg-gradient-to-br from-purple-50 to-purple-100 border-purple-300"
+                          : "bg-gradient-to-br from-orange-50 to-orange-100 border-orange-300"
                       }`}
                     >
                       {/* Used Overlay */}
@@ -640,21 +646,37 @@ const ContractInterface: React.FC<ContractInterfaceProps> = ({
                         </div>
                       )}
 
-                      {/* Note Header */}
-                      <div className="absolute top-4 left-4 right-4">
+                      {/* Currency Header */}
+                      <div className="absolute top-3 left-3 right-3">
                         <div className="flex items-center justify-between">
                           <div
-                            className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                              isUsed ? "bg-gray-400" : "bg-blue-500"
+                            className={`w-10 h-10 rounded-full flex items-center justify-center shadow-md ${
+                              isUsed
+                                ? "bg-gray-400"
+                                : note.amount === 1
+                                ? "bg-green-500"
+                                : note.amount === 2
+                                ? "bg-blue-500"
+                                : note.amount === 5
+                                ? "bg-purple-500"
+                                : "bg-orange-500"
                             }`}
                           >
-                            <span className="text-white font-bold text-sm">
+                            <span className="text-white font-bold text-lg">
                               $
                             </span>
                           </div>
                           <div
-                            className={`text-xs font-medium ${
-                              isUsed ? "text-gray-500" : "text-blue-600"
+                            className={`text-sm font-bold ${
+                              isUsed
+                                ? "text-gray-500"
+                                : note.amount === 1
+                                ? "text-green-700"
+                                : note.amount === 2
+                                ? "text-blue-700"
+                                : note.amount === 5
+                                ? "text-purple-700"
+                                : "text-orange-700"
                             }`}
                           >
                             AlgoCash
@@ -662,52 +684,106 @@ const ContractInterface: React.FC<ContractInterfaceProps> = ({
                         </div>
                       </div>
 
-                      {/* Amount Display */}
-                      <div className="absolute top-16 left-4 right-4 text-center">
+                      {/* Large Amount Display - Currency Style */}
+                      <div className="absolute top-14 left-4 right-4 text-center">
                         <div
-                          className={`text-3xl font-bold ${
+                          className={`text-5xl font-black ${
                             isUsed
                               ? "text-gray-500 line-through"
-                              : "text-gray-800"
+                              : note.amount === 1
+                              ? "text-green-800"
+                              : note.amount === 2
+                              ? "text-blue-800"
+                              : note.amount === 5
+                              ? "text-purple-800"
+                              : "text-orange-800"
                           }`}
                         >
                           {note.amount}
                         </div>
                         <div
-                          className={`text-sm font-medium ${
-                            isUsed ? "text-gray-400" : "text-gray-600"
+                          className={`text-lg font-bold ${
+                            isUsed
+                              ? "text-gray-400"
+                              : note.amount === 1
+                              ? "text-green-700"
+                              : note.amount === 2
+                              ? "text-blue-700"
+                              : note.amount === 5
+                              ? "text-purple-700"
+                              : "text-orange-700"
                           }`}
                         >
                           ALGO
                         </div>
+                        <div
+                          className={`text-xs font-medium mt-1 ${
+                            isUsed
+                              ? "text-gray-400"
+                              : note.amount === 1
+                              ? "text-green-600"
+                              : note.amount === 2
+                              ? "text-blue-600"
+                              : note.amount === 5
+                              ? "text-purple-600"
+                              : "text-orange-600"
+                          }`}
+                        >
+                          DIGITAL CURRENCY
+                        </div>
                       </div>
 
-                      {/* QR Code */}
-                      <div className="absolute top-24 left-1/2 transform -translate-x-1/2">
+                      {/* Large QR Code - Currency Style */}
+                      <div className="absolute top-32 left-1/2 transform -translate-x-1/2">
                         <QRCodeComponent url={qrUrl} isUsed={isUsed} />
                       </div>
 
-                      {/* Note ID */}
-                      <div className="absolute bottom-4 left-4 right-4">
+                      {/* Currency Footer */}
+                      <div className="absolute bottom-3 left-3 right-3">
                         <div
                           className={`text-xs font-mono text-center ${
-                            isUsed ? "text-gray-400" : "text-gray-500"
+                            isUsed ? "text-gray-400" : "text-gray-600"
                           }`}
                         >
                           ID: {note.id.slice(0, 8)}...{note.id.slice(-8)}
                         </div>
                         <div
-                          className={`text-xs text-center mt-1 ${
+                          className={`text-xs text-center mt-1 font-medium ${
                             isUsed ? "text-gray-400" : "text-gray-500"
                           }`}
                         >
                           {new Date(note.mintedAt).toLocaleDateString()}
                         </div>
+                        <div
+                          className={`text-xs text-center mt-1 font-bold ${
+                            isUsed
+                              ? "text-gray-400"
+                              : note.amount === 1
+                              ? "text-green-600"
+                              : note.amount === 2
+                              ? "text-blue-600"
+                              : note.amount === 5
+                              ? "text-purple-600"
+                              : "text-orange-600"
+                          }`}
+                        >
+                          SERIAL: {note.id.slice(-4).toUpperCase()}
+                        </div>
                       </div>
 
-                      {/* Decorative Elements */}
-                      <div className="absolute top-2 right-2 w-6 h-6 border-2 border-dashed border-gray-300 rounded-full opacity-30"></div>
-                      <div className="absolute bottom-2 left-2 w-4 h-4 border-2 border-dashed border-gray-300 rounded-full opacity-30"></div>
+                      {/* Currency Decorative Elements */}
+                      <div className="absolute top-2 right-2 w-8 h-8 border-2 border-dashed border-gray-400 rounded-full opacity-40"></div>
+                      <div className="absolute bottom-2 left-2 w-6 h-6 border-2 border-dashed border-gray-400 rounded-full opacity-40"></div>
+
+                      {/* Corner Ornaments */}
+                      <div className="absolute top-1 left-1 w-3 h-3 border border-gray-300 rounded-full opacity-50"></div>
+                      <div className="absolute top-1 right-1 w-3 h-3 border border-gray-300 rounded-full opacity-50"></div>
+                      <div className="absolute bottom-1 left-1 w-3 h-3 border border-gray-300 rounded-full opacity-50"></div>
+                      <div className="absolute bottom-1 right-1 w-3 h-3 border border-gray-300 rounded-full opacity-50"></div>
+
+                      {/* Security Pattern */}
+                      <div className="absolute top-8 left-2 w-1 h-16 bg-gradient-to-b from-transparent via-gray-300 to-transparent opacity-30"></div>
+                      <div className="absolute top-8 right-2 w-1 h-16 bg-gradient-to-b from-transparent via-gray-300 to-transparent opacity-30"></div>
                     </div>
                   </div>
                 );

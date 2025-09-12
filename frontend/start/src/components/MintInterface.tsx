@@ -17,7 +17,7 @@ const MintInterface: React.FC<MintInterfaceProps> = ({ userMnemonic }) => {
   const [contractBalance, setContractBalance] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(false);
   const [message, setMessage] = useState<string>("");
-  const [lastTxId, setLastTxId] = useState<string>("");
+  const [lastTxId] = useState<string>("");
 
   // Modal states
   const [showMintModal, setShowMintModal] = useState<boolean>(false);
@@ -111,8 +111,12 @@ const MintInterface: React.FC<MintInterfaceProps> = ({ userMnemonic }) => {
                 <span className="text-white font-bold text-lg">$</span>
               </div>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">Mint Digital Notes</h1>
-                <p className="text-sm text-gray-500">Convert ALGO into digital cash</p>
+                <h1 className="text-xl font-bold text-gray-900">
+                  Mint Digital Notes
+                </h1>
+                <p className="text-sm text-gray-500">
+                  Convert ALGO into digital cash
+                </p>
               </div>
             </div>
           </div>
@@ -135,7 +139,9 @@ const MintInterface: React.FC<MintInterfaceProps> = ({ userMnemonic }) => {
           {/* Balance Overview */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Your Balance</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Your Balance
+              </h3>
               <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
                 <span className="text-green-600 font-bold text-sm">$</span>
               </div>
@@ -153,7 +159,9 @@ const MintInterface: React.FC<MintInterfaceProps> = ({ userMnemonic }) => {
           {/* Escrow Balance */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Contract Balance</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Contract Balance
+              </h3>
               <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
                 <span className="text-blue-600 font-bold text-sm">📦</span>
               </div>
@@ -200,9 +208,7 @@ const MintInterface: React.FC<MintInterfaceProps> = ({ userMnemonic }) => {
                 </p>
               </div>
               <div className="text-center p-4 bg-red-50 rounded-lg">
-                <p className="text-xl font-bold text-red-600">
-                  {summary.used}
-                </p>
+                <p className="text-xl font-bold text-red-600">{summary.used}</p>
                 <p className="text-sm text-gray-600">Used</p>
                 <p className="text-xs text-gray-500">
                   {summary.usedValue.toFixed(4)} ALGO
@@ -332,27 +338,44 @@ const MintInterface: React.FC<MintInterfaceProps> = ({ userMnemonic }) => {
                   <span className="text-blue-600 font-bold text-lg">$</span>
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900">Mint Digital Notes</h3>
-                  <p className="text-sm text-gray-500">Convert ALGO into digital cash notes</p>
+                  <h3 className="text-xl font-bold text-gray-900">
+                    Mint Digital Notes
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    Convert ALGO into digital cash notes
+                  </p>
                 </div>
               </div>
               <button
                 onClick={() => setShowMintModal(false)}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >
-                <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  className="w-6 h-6 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             </div>
 
             <div className="p-6">
-
               <div className="space-y-6">
                 {/* Available Balance */}
                 <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                  <p className="text-blue-600 mb-1 text-sm font-medium">Available Balance</p>
-                  <p className="text-2xl font-bold text-blue-700">{contractBalance.toFixed(4)} ALGO</p>
+                  <p className="text-blue-600 mb-1 text-sm font-medium">
+                    Available Balance
+                  </p>
+                  <p className="text-2xl font-bold text-blue-700">
+                    {contractBalance.toFixed(4)} ALGO
+                  </p>
                 </div>
 
                 {/* Denominations */}
@@ -378,10 +401,16 @@ const MintInterface: React.FC<MintInterfaceProps> = ({ userMnemonic }) => {
                         >
                           <div className="text-center">
                             <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-2">
-                              <span className="text-blue-600 font-bold text-lg">{denom}</span>
+                              <span className="text-blue-600 font-bold text-lg">
+                                {denom}
+                              </span>
                             </div>
-                            <p className="font-semibold text-gray-900">{denom} ALGO</p>
-                            <p className="text-xs text-gray-500">Max: {maxQuantity}</p>
+                            <p className="font-semibold text-gray-900">
+                              {denom} ALGO
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              Max: {maxQuantity}
+                            </p>
                           </div>
                         </div>
                       );
@@ -398,7 +427,9 @@ const MintInterface: React.FC<MintInterfaceProps> = ({ userMnemonic }) => {
                     <input
                       type="number"
                       value={mintQuantity}
-                      onChange={(e) => setMintQuantity(parseInt(e.target.value) || 1)}
+                      onChange={(e) =>
+                        setMintQuantity(parseInt(e.target.value) || 1)
+                      }
                       min="1"
                       max={Math.floor(contractBalance / selectedDenomination)}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -409,9 +440,12 @@ const MintInterface: React.FC<MintInterfaceProps> = ({ userMnemonic }) => {
                 {/* Selected Summary */}
                 {selectedDenomination > 0 && mintQuantity > 0 && (
                   <div className="bg-gray-50 p-4 rounded-lg">
-                    <p className="text-gray-600 mb-2 text-sm font-medium">Selected</p>
+                    <p className="text-gray-600 mb-2 text-sm font-medium">
+                      Selected
+                    </p>
                     <p className="text-lg font-bold text-gray-900">
-                      {mintQuantity} × {selectedDenomination} ALGO = {(selectedDenomination * mintQuantity).toFixed(4)} ALGO
+                      {mintQuantity} × {selectedDenomination} ALGO ={" "}
+                      {(selectedDenomination * mintQuantity).toFixed(4)} ALGO
                     </p>
                   </div>
                 )}
@@ -426,7 +460,11 @@ const MintInterface: React.FC<MintInterfaceProps> = ({ userMnemonic }) => {
                   </button>
                   <button
                     onClick={handleMintNotes}
-                    disabled={loading || selectedDenomination === 0 || mintQuantity === 0}
+                    disabled={
+                      loading ||
+                      selectedDenomination === 0 ||
+                      mintQuantity === 0
+                    }
                     className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
                   >
                     {loading ? "Minting..." : "Mint Notes"}

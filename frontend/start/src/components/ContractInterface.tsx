@@ -1,6 +1,59 @@
 import React, { useState, useEffect } from "react";
+import QRCode from "qrcode";
 import { algorandService } from "../services/algorand";
 import { localStorageService } from "../services/localStorage";
+
+// QR Code Component
+const QRCodeComponent: React.FC<{ url: string; isUsed: boolean }> = ({
+  url,
+  isUsed,
+}) => {
+  const [qrDataUrl, setQrDataUrl] = useState<string>("");
+
+  useEffect(() => {
+    const generateQR = async () => {
+      try {
+        const qrCodeDataUrl = await QRCode.toDataURL(url, {
+          width: 80,
+          margin: 1,
+          color: {
+            dark: isUsed ? "#6B7280" : "#1F2937",
+            light: "#FFFFFF",
+          },
+        });
+        setQrDataUrl(qrCodeDataUrl);
+      } catch (error) {
+        console.error("Error generating QR code:", error);
+      }
+    };
+
+    generateQR();
+  }, [url, isUsed]);
+
+  return (
+    <div
+      className={`w-20 h-20 rounded-lg border-2 ${
+        isUsed ? "border-gray-300 bg-gray-100" : "border-gray-200 bg-white"
+      } flex items-center justify-center shadow-sm`}
+    >
+      {qrDataUrl ? (
+        <img src={qrDataUrl} alt="QR Code" className="w-16 h-16 rounded" />
+      ) : (
+        <div
+          className={`w-16 h-16 rounded ${
+            isUsed ? "bg-gray-200" : "bg-gray-100"
+          } flex items-center justify-center`}
+        >
+          <div
+            className={`w-8 h-8 ${
+              isUsed ? "bg-gray-300" : "bg-gray-200"
+            } rounded`}
+          ></div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface DigitalNote {
   id: string;
@@ -558,95 +611,103 @@ const ContractInterface: React.FC<ContractInterfaceProps> = ({
               Your Minted Digital Notes
             </h3>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {digitalNotes.map((note) => {
                 const isUsed = note.status !== "active";
+                const qrUrl = `https://algo.cptr.app/?id=${note.id}`;
+
                 return (
                   <div
                     key={note.id}
-                    className={`relative p-4 rounded-lg border transition-all duration-200 ${
-                      isUsed
-                        ? "bg-gray-100 border-gray-300 opacity-60"
-                        : "bg-white border-gray-200 hover:shadow-md hover:border-blue-300"
+                    className={`relative transition-all duration-300 transform hover:scale-105 ${
+                      isUsed ? "opacity-60" : ""
                     }`}
                   >
-                    {/* Used Overlay */}
-                    {isUsed && (
-                      <div className="absolute inset-0 bg-gray-200 bg-opacity-50 rounded-lg flex items-center justify-center">
-                        <div className="bg-gray-600 text-white px-3 py-1 rounded-full text-xs font-bold">
-                          USED
+                    {/* Digital Note Card */}
+                    <div
+                      className={`relative w-full h-64 rounded-xl shadow-lg border-2 ${
+                        isUsed
+                          ? "bg-gradient-to-br from-gray-100 to-gray-200 border-gray-300"
+                          : "bg-gradient-to-br from-blue-50 to-indigo-100 border-blue-200"
+                      }`}
+                    >
+                      {/* Used Overlay */}
+                      {isUsed && (
+                        <div className="absolute inset-0 bg-gray-300 bg-opacity-70 rounded-xl flex items-center justify-center z-10">
+                          <div className="bg-gray-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-lg">
+                            USED
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
 
-                    {/* Note Content */}
-                    <div className={`${isUsed ? "opacity-50" : ""}`}>
-                      {/* Denomination Badge */}
-                      <div className="flex items-center justify-center mb-3">
-                        <div
-                          className={`w-12 h-12 rounded-lg flex items-center justify-center ${
-                            isUsed ? "bg-gray-300" : "bg-blue-100"
-                          }`}
-                        >
-                          <span
-                            className={`font-bold text-lg ${
-                              isUsed ? "text-gray-600" : "text-blue-600"
+                      {/* Note Header */}
+                      <div className="absolute top-4 left-4 right-4">
+                        <div className="flex items-center justify-between">
+                          <div
+                            className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                              isUsed ? "bg-gray-400" : "bg-blue-500"
                             }`}
                           >
-                            {note.amount}
-                          </span>
+                            <span className="text-white font-bold text-sm">
+                              $
+                            </span>
+                          </div>
+                          <div
+                            className={`text-xs font-medium ${
+                              isUsed ? "text-gray-500" : "text-blue-600"
+                            }`}
+                          >
+                            AlgoCash
+                          </div>
                         </div>
                       </div>
 
-                      {/* Note Details */}
-                      <div className="text-center space-y-2">
-                        <h4
-                          className={`font-semibold ${
+                      {/* Amount Display */}
+                      <div className="absolute top-16 left-4 right-4 text-center">
+                        <div
+                          className={`text-3xl font-bold ${
                             isUsed
                               ? "text-gray-500 line-through"
-                              : "text-gray-900"
+                              : "text-gray-800"
                           }`}
                         >
-                          {note.amount} ALGO Note
-                        </h4>
-
-                        <div className="space-y-1">
-                          <p
-                            className={`text-xs font-mono ${
-                              isUsed ? "text-gray-400" : "text-gray-600"
-                            }`}
-                          >
-                            ID: {note.id}
-                          </p>
-                          <p
-                            className={`text-xs ${
-                              isUsed ? "text-gray-400" : "text-gray-500"
-                            }`}
-                          >
-                            {new Date(note.mintedAt).toLocaleDateString()}
-                          </p>
-                          <p
-                            className={`text-xs ${
-                              isUsed ? "text-gray-400" : "text-gray-500"
-                            }`}
-                          >
-                            {new Date(note.mintedAt).toLocaleTimeString()}
-                          </p>
+                          {note.amount}
+                        </div>
+                        <div
+                          className={`text-sm font-medium ${
+                            isUsed ? "text-gray-400" : "text-gray-600"
+                          }`}
+                        >
+                          ALGO
                         </div>
                       </div>
 
-                      {/* Status Badge */}
-                      <div className="mt-3 flex justify-center">
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            isUsed
-                              ? "bg-gray-200 text-gray-600"
-                              : "bg-green-100 text-green-800"
+                      {/* QR Code */}
+                      <div className="absolute top-24 left-1/2 transform -translate-x-1/2">
+                        <QRCodeComponent url={qrUrl} isUsed={isUsed} />
+                      </div>
+
+                      {/* Note ID */}
+                      <div className="absolute bottom-4 left-4 right-4">
+                        <div
+                          className={`text-xs font-mono text-center ${
+                            isUsed ? "text-gray-400" : "text-gray-500"
                           }`}
                         >
-                          {isUsed ? "Used" : "Available"}
-                        </span>
+                          ID: {note.id.slice(0, 8)}...{note.id.slice(-8)}
+                        </div>
+                        <div
+                          className={`text-xs text-center mt-1 ${
+                            isUsed ? "text-gray-400" : "text-gray-500"
+                          }`}
+                        >
+                          {new Date(note.mintedAt).toLocaleDateString()}
+                        </div>
                       </div>
+
+                      {/* Decorative Elements */}
+                      <div className="absolute top-2 right-2 w-6 h-6 border-2 border-dashed border-gray-300 rounded-full opacity-30"></div>
+                      <div className="absolute bottom-2 left-2 w-4 h-4 border-2 border-dashed border-gray-300 rounded-full opacity-30"></div>
                     </div>
                   </div>
                 );

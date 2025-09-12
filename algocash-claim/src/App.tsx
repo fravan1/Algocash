@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import algosdk from "algosdk";
+import { PeraWalletConnect } from "@perawallet/connect";
 
 // Configuration
 const ALGOD_BASE_URL = "https://testnet-api.algonode.cloud";
@@ -94,19 +95,6 @@ class AlgorandService {
     return `https://testnet.algoexplorer.io/tx/${txId}`;
   }
 
-  // Get account balance
-  async getAccountBalance(): Promise<number> {
-    try {
-      const accountInfo = await this.algodClient
-        .accountInformation(this.account.addr)
-        .do();
-      return accountInfo.amount / 1000000; // Convert to ALGO
-    } catch (error) {
-      console.error("Error getting balance:", error);
-      return 0;
-    }
-  }
-
   // Withdraw funds and mark as used
   async withdrawAndMarkUsed(
     uniqueCode: string,
@@ -178,7 +166,8 @@ class AlgorandService {
 
       // Send transactions
       const txns = [signedPaymentTxn.blob, signedAppCallTxn.blob];
-      const { txId } = await this.algodClient.sendRawTransaction(txns).do();
+      const result = await this.algodClient.sendRawTransaction(txns).do();
+      const txId = result.txid;
 
       // Wait for confirmation
       await algosdk.waitForConfirmation(this.algodClient, txId, 4);
@@ -202,7 +191,8 @@ const App: React.FC = () => {
   const [destinationAddress, setDestinationAddress] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [message, setMessage] = useState<string>("");
-  const [accountBalance, setAccountBalance] = useState<number>(0);
+  const [isWalletConnected, setIsWalletConnected] = useState<boolean>(false);
+  const [walletAddress, setWalletAddress] = useState<string>("");
   const [verificationResult, setVerificationResult] = useState<{
     amount: number;
     valid: boolean;
@@ -210,6 +200,11 @@ const App: React.FC = () => {
   } | null>(null);
 
   const algorandService = new AlgorandService();
+
+  // Initialize Pera Wallet
+  const peraWallet = new PeraWalletConnect({
+    chainId: 416002, // TestNet
+  });
 
   // Extract unique code from URL on component mount
   useEffect(() => {
@@ -221,14 +216,41 @@ const App: React.FC = () => {
       setUniqueCode(codeFromUrl);
       setMessage("✅ Unique code loaded from URL");
     }
-
-    // Load account balance
-    const loadBalance = async () => {
-      const balance = await algorandService.getAccountBalance();
-      setAccountBalance(balance);
-    };
-    loadBalance();
   }, []);
+
+  // Connect to Pera Wallet
+  const handleConnectWallet = async () => {
+    try {
+      setLoading(true);
+      const accounts = await peraWallet.connect();
+
+      if (accounts.length > 0) {
+        const address = accounts[0];
+        setWalletAddress(address);
+        setDestinationAddress(address);
+        setIsWalletConnected(true);
+        setMessage("✅ Pera Wallet connected successfully!");
+      }
+    } catch (error) {
+      console.error("Wallet connection error:", error);
+      setMessage("❌ Failed to connect Pera Wallet");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Disconnect from Pera Wallet
+  const handleDisconnectWallet = async () => {
+    try {
+      await peraWallet.disconnect();
+      setWalletAddress("");
+      setDestinationAddress("");
+      setIsWalletConnected(false);
+      setMessage("✅ Pera Wallet disconnected");
+    } catch (error) {
+      console.error("Wallet disconnection error:", error);
+    }
+  };
 
   const handleVerifyCode = async () => {
     if (!uniqueCode.trim()) {
@@ -311,14 +333,6 @@ const App: React.FC = () => {
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">AlgoCash</h1>
           <p className="text-gray-600">Claim Your Digital Note</p>
-          <div className="mt-2 p-2 bg-blue-50 rounded-lg">
-            <p className="text-sm text-blue-800">
-              Account Balance:{" "}
-              <span className="font-bold">
-                {accountBalance.toFixed(4)} ALGO
-              </span>
-            </p>
-          </div>
         </div>
 
         {/* Main Card */}
@@ -376,13 +390,39 @@ const App: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Your Algorand Address
               </label>
-              <input
-                type="text"
-                value={destinationAddress}
-                onChange={(e) => setDestinationAddress(e.target.value)}
-                placeholder="Enter your Algorand address"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
-              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={destinationAddress}
+                  onChange={(e) => setDestinationAddress(e.target.value)}
+                  placeholder="Enter your Algorand address"
+                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
+                />
+                {!isWalletConnected ? (
+                  <button
+                    onClick={handleConnectWallet}
+                    disabled={loading}
+                    className="px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm"
+                  >
+                    {loading ? "Connecting..." : "Connect Pera"}
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleDisconnectWallet}
+                    className="px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium text-sm"
+                  >
+                    Disconnect
+                  </button>
+                )}
+              </div>
+              {isWalletConnected && (
+                <div className="mt-2 p-2 bg-green-50 rounded-lg">
+                  <p className="text-sm text-green-800">
+                    ✅ Connected: {walletAddress.slice(0, 8)}...
+                    {walletAddress.slice(-8)}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Claim Button */}

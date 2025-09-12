@@ -12,7 +12,7 @@ const App: React.FC = () => {
   const [userMnemonic, setUserMnemonic] = useState<string>("");
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<ActiveTab>("contract");
+  const [activeTab] = useState<ActiveTab>("contract");
 
   // Load mnemonic from environment variables on component mount
   useEffect(() => {
@@ -26,21 +26,6 @@ const App: React.FC = () => {
       );
     }
   }, []);
-
-  const handleConnect = () => {
-    if (userMnemonic.trim().split(" ").length === 25) {
-      setIsConnected(true);
-      setError("");
-    } else {
-      setError("Please enter a valid 25-word mnemonic phrase");
-    }
-  };
-
-  const handleDisconnect = () => {
-    setIsConnected(false);
-    setUserMnemonic("");
-    setError("");
-  };
 
   const renderActiveComponent = () => {
     switch (activeTab) {

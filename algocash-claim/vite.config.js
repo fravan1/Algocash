@@ -5,4 +5,15 @@ export default defineConfig({
     server: {
         port: 3001,
     },
+    define: {
+        global: "globalThis",
+    },
+    resolve: {
+        alias: {
+            buffer: "buffer",
+        },
+    },
+    optimizeDeps: {
+        include: ["buffer"],
+    },
 });

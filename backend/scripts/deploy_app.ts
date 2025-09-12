@@ -93,7 +93,7 @@ async function deployApp() {
         Buffer.from(approvalProgram.result, "base64")
       ),
       clearProgram: new Uint8Array(Buffer.from(clearProgram.result, "base64")),
-      numGlobalByteSlices: 64, // Store encryption mapping (hash -> data) - Max limit
+      numGlobalByteSlices: 4, // Store encryption mapping (hash -> data)
       numGlobalInts: 0, // No integers needed
       numLocalByteSlices: 1, // User encrypted hash
       numLocalInts: 0, // No integers needed

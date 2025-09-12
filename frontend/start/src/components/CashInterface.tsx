@@ -25,7 +25,20 @@ const CashInterface: React.FC<CashInterfaceProps> = ({ userMnemonic }) => {
       setLoading(true);
       const account = algorandService.getAccountFromMnemonic(userMnemonic);
       const balance = await algorandService.getAccountBalance(account.addr);
-      const transactions = algorandService.getAllCashTransactions();
+
+      // Check if user has opted into the app
+      const hasOptedIn = await algorandService.checkOptInStatus(userMnemonic);
+      if (!hasOptedIn) {
+        setMessage(
+          "⚠️ You need to opt into the application first. Go to the Contract tab and click 'Opt Into App'."
+        );
+        setCashTransactions([]);
+        setUserBalance(balance);
+        return;
+      }
+
+      const transactions =
+        await algorandService.getAllStoredCashFromBlockchain();
 
       setUserBalance(balance);
       setCashTransactions(transactions);
@@ -46,14 +59,19 @@ const CashInterface: React.FC<CashInterfaceProps> = ({ userMnemonic }) => {
         throw new Error("Amount must be between 0.1 and 0.9 ALGO");
       }
 
+      // Check if user has opted into the app
+      const hasOptedIn = await algorandService.checkOptInStatus(userMnemonic);
+      if (!hasOptedIn) {
+        throw new Error(
+          "You need to opt into the application first. Go to the Contract tab and click 'Opt Into App'."
+        );
+      }
+
       // Store on blockchain
       const result = await algorandService.storeCashOnBlockchain(
         userMnemonic,
         amount
       );
-
-      // Add to local storage
-      algorandService.addCashToStorage(result.uniqueId, amount, result.txId);
 
       setLastTxId(result.txId);
       setMessage(`✅ Cash stored successfully! Unique ID: ${result.uniqueId}`);

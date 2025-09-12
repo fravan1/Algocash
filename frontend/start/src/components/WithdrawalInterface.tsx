@@ -33,7 +33,8 @@ const WithdrawalInterface: React.FC<WithdrawalInterfaceProps> = ({
       setLoading(true);
       const account = algorandService.getAccountFromMnemonic(userMnemonic);
       const balance = await algorandService.getAccountBalance(account.addr);
-      const history = algorandService.getWithdrawalHistory();
+      const history =
+        await algorandService.getWithdrawalHistoryFromBlockchain();
 
       setUserBalance(balance);
       setWithdrawalHistory(history);
@@ -44,7 +45,7 @@ const WithdrawalInterface: React.FC<WithdrawalInterfaceProps> = ({
     }
   };
 
-  const handleVerifyCode = () => {
+  const handleVerifyCode = async () => {
     if (!uniqueCode.trim()) {
       setVerificationResult({
         amount: 0,
@@ -54,8 +55,21 @@ const WithdrawalInterface: React.FC<WithdrawalInterfaceProps> = ({
       return;
     }
 
-    const result = algorandService.verifyUniqueCode(uniqueCode);
-    setVerificationResult(result);
+    try {
+      setLoading(true);
+      const result = await algorandService.verifyUniqueCodeFromBlockchain(
+        uniqueCode
+      );
+      setVerificationResult(result);
+    } catch (error) {
+      setVerificationResult({
+        amount: 0,
+        valid: false,
+        message: `Error verifying code: ${error}`,
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleWithdraw = async () => {
@@ -68,6 +82,15 @@ const WithdrawalInterface: React.FC<WithdrawalInterfaceProps> = ({
       if (!destinationAddress.trim()) {
         setMessage("❌ Please enter a destination address");
         return;
+      }
+
+      // Validate address format
+      try {
+        algorandService.getAccountFromMnemonic(destinationAddress);
+        setMessage("❌ Please enter a valid Algorand address, not a mnemonic");
+        return;
+      } catch {
+        // This is expected - we want it to fail for mnemonics
       }
 
       setLoading(true);
@@ -83,9 +106,6 @@ const WithdrawalInterface: React.FC<WithdrawalInterfaceProps> = ({
         amount
       );
 
-      // Mark as withdrawn
-      algorandService.markAsWithdrawn(uniqueCode, txId);
-
       setLastTxId(txId);
       setMessage(
         `✅ Withdrawal successful! ${amount} ALGO sent to ${destinationAddress}`
@@ -99,7 +119,20 @@ const WithdrawalInterface: React.FC<WithdrawalInterfaceProps> = ({
       // Reload data
       await loadData();
     } catch (error) {
-      setMessage(`❌ Error processing withdrawal: ${error}`);
+      let errorMessage = `❌ Error processing withdrawal: ${error}`;
+
+      // Provide more helpful error messages
+      if (errorMessage.includes("unavailable Account")) {
+        errorMessage = `❌ Destination address is not available on TestNet. Please ensure the address exists and is funded. Try using the TestNet faucet: https://testnet.algoexplorer.io/dispenser`;
+      } else if (errorMessage.includes("overspend")) {
+        errorMessage = `❌ Contract has insufficient balance. Please deposit more ALGO to the contract first.`;
+      } else if (
+        errorMessage.includes("Invalid Algorand destination address")
+      ) {
+        errorMessage = `❌ Invalid address format. Please enter a valid Algorand address.`;
+      }
+
+      setMessage(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -155,7 +188,7 @@ const WithdrawalInterface: React.FC<WithdrawalInterfaceProps> = ({
                   disabled={loading || !uniqueCode.trim()}
                   className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
                 >
-                  Verify
+                  {loading ? "Verifying..." : "Verify"}
                 </button>
               </div>
             </div>
@@ -216,6 +249,35 @@ const WithdrawalInterface: React.FC<WithdrawalInterfaceProps> = ({
             💡 Verify your unique code first, then enter the destination address
             to withdraw
           </p>
+
+          {/* Address Help Section */}
+          <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <h4 className="font-semibold text-yellow-800 mb-2">
+              ⚠️ Important: Address Requirements
+            </h4>
+            <ul className="text-sm text-yellow-700 space-y-1">
+              <li>• Destination address must exist on Algorand TestNet</li>
+              <li>• Address must have at least 0.1 ALGO balance</li>
+              <li>
+                • Use the{" "}
+                <a
+                  href="https://testnet.algoexplorer.io/dispenser"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline"
+                >
+                  TestNet Faucet
+                </a>{" "}
+                to fund new addresses
+              </li>
+              <li>
+                • Your own address:{" "}
+                <code className="bg-yellow-100 px-1 rounded">
+                  {algorandService.getAccountFromMnemonic(userMnemonic).addr}
+                </code>
+              </li>
+            </ul>
+          </div>
         </div>
 
         {/* Summary */}

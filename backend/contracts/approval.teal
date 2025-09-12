@@ -99,16 +99,6 @@ handle_deposit:
     return
     
 deposit_valid:
-    // Add payment amount to user's balance variable
-    txn Sender
-    byte "balance"
-    txn Sender
-    byte "balance"
-    app_local_get
-    gtxn 1 Amount
-    +
-    app_local_put
-    
     // Accept deposit
     int 1
     return
@@ -124,17 +114,7 @@ handle_payment:
     return
     
 payment_valid:
-    // Update user's balance in local state
-    txn Sender
-    byte "balance"
-    txn Sender
-    byte "balance"
-    app_local_get
-    txn Amount
-    +
-    app_local_put
-    
-    // Accept payment
+    // Accept payment (no need to track balance in local state)
     int 1
     return
 
@@ -158,14 +138,43 @@ handle_cash_storage:
     int 1
     return
 
-// Handle withdrawal transactions
+// Handle withdrawal transactions (mark as withdrawn only)
 handle_withdrawal:
-    // Args: [unique_code, withdrawal_tx_id, withdrawal_timestamp]
-    // We need to update the existing data, not overwrite it
-    // For now, we'll just accept the withdrawal call
-    // The actual marking will be handled by updating the JSON data
+    // Args: [unique_code, destination_address, amount]
+    // This will only mark the code as withdrawn (no ALGO transfer)
+    
+    // Verify the unique code exists and hasn't been withdrawn
+    txn ApplicationArgs 0  // unique_code
+    app_global_get
+    dup
+    len  // Get length of the value
+    int 0
+    !=  // Check if length is not 0 (meaning value exists)
+    bnz code_exists
+    err  // Code doesn't exist
+    
+code_exists:
+    // Check if it's already withdrawn (starts with "WITHDRAWN_")
+    byte "WITHDRAWN_"
+    swap
+    extract 0 10  // Get first 10 bytes
+    ==
+    bnz already_withdrawn
+    // Code exists and not withdrawn, proceed with marking as withdrawn
+    
+    // Mark the unique code as withdrawn in global state
+    txn ApplicationArgs 0  // unique_code
+    byte "WITHDRAWN_"
+    txn ApplicationArgs 1  // destination_address (for tracking)
+    concat
+    app_global_put
+    
+    // Accept withdrawal (no ALGO transfer from contract)
     int 1
     return
+
+already_withdrawn:
+    err  // Code already withdrawn
 
 // Handle OptIn transactions (users joining the application)
 handle_optin:

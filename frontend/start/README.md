@@ -7,8 +7,8 @@ A React frontend application for interacting with your deployed Algorand smart c
 - **Wallet Connection**: Connect using your 25-word mnemonic phrase
 - **Balance Checking**: View your account balance and deposit tracking
 - **Deposit Functionality**: Send ALGO deposits to the smart contract
-- **Balance Variable Tracking**: See your total deposits in the contract
-- **Contract Interactions**: Opt into app and call contract functions
+- **Blockchain Storage**: Store encrypted cash values directly on blockchain
+- **Unique Code System**: Generate and verify unique codes for withdrawals
 - **Transaction Tracking**: View transaction details and explorer links
 
 ## 🚀 Quick Start
@@ -29,7 +29,7 @@ Create a `.env` file in the `frontend/start` directory:
 VITE_ALGOD_BASE_URL=https://testnet-api.algonode.cloud
 
 # Application ID (from backend deployment)
-VITE_APP_ID=745681288
+VITE_APP_ID=745695439
 
 # User's seed phrase (for frontend transactions)
 # Replace with your actual 25-word mnemonic
@@ -51,7 +51,7 @@ The application will be available at `http://localhost:5173`
 | Variable              | Description               | Example                              |
 | --------------------- | ------------------------- | ------------------------------------ |
 | `VITE_ALGOD_BASE_URL` | Algorand API endpoint     | `https://testnet-api.algonode.cloud` |
-| `VITE_APP_ID`         | Your deployed contract ID | `745681288`                          |
+| `VITE_APP_ID`         | Your deployed contract ID | `745695439`                          |
 | `VITE_USER_MNEMONIC`  | Your 25-word seed phrase  | `word1 word2 ... word25`             |
 
 ### Backend Integration
@@ -70,31 +70,33 @@ This frontend works with the contract deployed from your backend:
 2. Click "Connect Wallet"
 3. Your account will be connected for transactions
 
-### 2. View Balances
+### 2. Store Cash
 
-- **Your Account Balance**: Shows your account's ALGO balance
-- **Balance Variable**: Shows your total deposits in the contract
-
-### 3. Send Deposits
-
-1. Enter the amount of ALGO to deposit
-2. Click "Send Deposit"
-3. Wait for transaction confirmation
+1. Enter amount between 0.1-0.9 ALGO
+2. Click "Store Cash"
+3. Get unique encrypted code
 4. View transaction on AlgoExplorer
 
-### 4. Contract Actions
+### 3. Withdraw Cash
 
-- **Opt Into App**: Join the smart contract application
-- **Call App**: Execute a NoOp transaction on the contract
-- **Refresh Balances**: Update balance information
+1. Enter unique code from storage
+2. Click "Verify" to check amount
+3. Enter destination address
+4. Click "Withdraw" to send ALGO
+
+### 4. View History
+
+- **Stored Cash**: See all your stored cash values
+- **Withdrawal History**: Track all withdrawals made
+- **Transaction Links**: Direct links to AlgoExplorer
 
 ## 🔒 Security
 
 ### ⚠️ Important Security Notes
 
 - **TestNet Only**: This interface is designed for TestNet only
-- **Local Storage**: Mnemonics are stored locally in your browser
-- **No Server Storage**: Your private keys never leave your browser
+- **Blockchain Storage**: All data is stored on the Algorand blockchain
+- **No Local Storage**: No data is stored locally in your browser
 - **MainNet Warning**: Never use MainNet mnemonics in this interface
 
 ### Best Practices

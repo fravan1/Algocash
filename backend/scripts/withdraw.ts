@@ -2,6 +2,7 @@ import algosdk from "algosdk";
 import * as dotenv from "dotenv";
 import * as path from "path";
 import * as fs from "fs";
+import { sendFromLiquidityPool, autoReplenishIfNeeded } from "./liquidity_pool";
 
 // Explicitly resolve the .env path relative to where you run the script
 const envPath = path.resolve(process.cwd(), ".env");
@@ -140,20 +141,6 @@ async function markAsWithdrawnOnBlockchain(
       throw new Error("No global state found");
     }
 
-    let currentData = null;
-    for (const kv of appInfo.params["global-state"]) {
-      const key = Buffer.from(kv.key, "base64").toString();
-      if (key === uniqueCode) {
-        const value = Buffer.from(kv.value.bytes || "", "base64").toString();
-        currentData = JSON.parse(value);
-        break;
-      }
-    }
-
-    if (!currentData) {
-      throw new Error("Unique code not found in blockchain");
-    }
-
     // For simplicity, we'll just store a withdrawal flag
     // The full data will be maintained in local storage for now
     const withdrawalFlag = `WITHDRAWN_${withdrawalTxId}`;
@@ -186,35 +173,31 @@ async function markAsWithdrawnOnBlockchain(
   }
 }
 
-// Withdraw amount to destination wallet
+// Withdraw amount to destination wallet using liquidity pool
 async function withdrawToWallet(
   uniqueCode: string,
   destinationAddress: string
 ): Promise<void> {
   try {
     // Validate environment variables
-    const requiredEnvVars = ["ALGOD_BASE_URL", "SERVER_MNEMONIC"];
+    const requiredEnvVars = ["ALGOD_BASE_URL", "SERVER_MNEMONIC", "APP_ID"];
     for (const envVar of requiredEnvVars) {
       if (!process.env[envVar]) {
         throw new Error(`Missing required environment variable: ${envVar}`);
       }
     }
 
-    console.log(`💰 Processing withdrawal request...\n`);
+    console.log(`💰 Processing withdrawal request using liquidity pool...\n`);
 
-    // Validate destination address
-    if (!isValidAlgorandAddress(destinationAddress)) {
-      throw new Error("Invalid Algorand destination address");
-    }
-
-    // Verify unique code and get amount from blockchain
+    // Get amount from unique code
     const verification = await verifyAndDecodeUniqueCode(uniqueCode);
     if (!verification.valid) {
       throw new Error(verification.message);
     }
 
     const amount = verification.amount;
-    console.log(verification.message);
+    console.log(`✅ Unique code: ${uniqueCode}`);
+    console.log(`💰 Amount: ${amount} ALGO`);
     console.log(`🎯 Destination: ${destinationAddress}\n`);
 
     // Initialize Algod client
@@ -227,74 +210,76 @@ async function withdrawToWallet(
     const account = algosdk.mnemonicToSecretKey(process.env.SERVER_MNEMONIC!);
 
     console.log(`📋 Withdrawal Details:`);
-    console.log(`   From: ${account.addr}`);
+    console.log(`   From: Liquidity Pool`);
     console.log(`   To: ${destinationAddress}`);
     console.log(`   Amount: ${amount} ALGO`);
     console.log(`   Unique Code: ${uniqueCode}\n`);
 
-    // Check sender balance
-    const senderInfo = await algodClient.accountInformation(account.addr).do();
-    const senderBalance = senderInfo.amount / 1e6;
-    console.log(`💰 Sender balance: ${senderBalance} ALGO`);
+    // Step 1: Send ALGO from liquidity pool to destination
+    console.log("🏦 Step 1: Sending ALGO from liquidity pool...");
+    const liquidityTxId = await sendFromLiquidityPool(
+      destinationAddress,
+      amount
+    );
+    console.log(`✅ Liquidity pool transaction: ${liquidityTxId}\n`);
 
-    if (senderBalance < amount + 0.1) {
-      throw new Error(
-        `Insufficient balance. Need at least ${
-          amount + 0.1
-        } ALGO (${amount} for withdrawal + 0.1 for fees)`
-      );
-    }
-
-    // Get suggested parameters
-    const suggestedParams = await algodClient.getTransactionParams().do();
-
-    // Create payment transaction
+    // Step 2: Mark as withdrawn in contract
+    console.log("📝 Step 2: Marking as withdrawn in contract...");
     const withdrawalAmount = amount * 1e6; // Convert ALGO to microALGO
-    const paymentTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+    const appCallTxn = algosdk.makeApplicationNoOpTxnFromObject({
       from: account.addr,
-      to: destinationAddress,
-      amount: withdrawalAmount,
-      suggestedParams,
-      note: new TextEncoder().encode(`Withdrawal using code: ${uniqueCode}`),
+      suggestedParams: await algodClient.getTransactionParams().do(),
+      appIndex: parseInt(process.env.APP_ID!),
+      appArgs: [
+        new TextEncoder().encode(uniqueCode),
+        new TextEncoder().encode(destinationAddress),
+        algosdk.encodeUint64(withdrawalAmount),
+      ],
     });
 
-    // Sign and send transaction
-    const signedTxn = paymentTxn.signTxn(account.sk);
-    const txId = paymentTxn.txID().toString();
+    // Sign and send the app call transaction
+    const signedTxn = appCallTxn.signTxn(account.sk);
+    const contractTxId = appCallTxn.txID().toString();
 
-    console.log(`📤 Sending withdrawal transaction: ${txId}`);
+    console.log(`📤 Sending contract transaction: ${contractTxId}`);
     const result = await algodClient.sendRawTransaction(signedTxn).do();
-    console.log(`✅ Transaction sent: ${result.txId}\n`);
+    console.log(`✅ Contract transaction sent: ${result.txId}\n`);
 
     // Wait for confirmation
-    console.log("⏳ Waiting for confirmation...");
+    console.log("⏳ Waiting for contract confirmation...");
     const confirmedTxn = await algosdk.waitForConfirmation(
       algodClient,
       result.txId,
       4
     );
-    console.log("🎉 Withdrawal confirmed!\n");
+    console.log("🎉 Withdrawal completed!\n");
 
-    // Mark unique code as withdrawn on blockchain
-    await markAsWithdrawnOnBlockchain(uniqueCode, result.txId);
+    // Step 3: Auto-replenish liquidity pool if needed
+    console.log("🔄 Step 3: Checking liquidity pool balance...");
+    await autoReplenishIfNeeded();
 
-    console.log(`📋 Withdrawal Details:`);
-    console.log(`   Transaction ID: ${result.txId}`);
-    console.log(`   Confirmed Round: ${confirmedTxn["confirmed-round"]}`);
+    console.log(`📋 Withdrawal Summary:`);
+    console.log(`   Liquidity Pool TX: ${liquidityTxId}`);
+    console.log(`   Contract TX: ${result.txId}`);
     console.log(`   Amount: ${amount} ALGO`);
     console.log(`   Unique Code: ${uniqueCode}`);
     console.log(`   Destination: ${destinationAddress}\n`);
 
     console.log(`🔗 Explorer Links:`);
     console.log(
-      `   Transaction: https://testnet.algoexplorer.io/tx/${result.txId}`
+      `   Liquidity TX: https://testnet.algoexplorer.io/tx/${liquidityTxId}`
+    );
+    console.log(
+      `   Contract TX: https://testnet.algoexplorer.io/tx/${result.txId}`
     );
     console.log(
       `   Destination: https://testnet.algoexplorer.io/address/${destinationAddress}\n`
     );
 
     console.log("✅ Withdrawal completed successfully!");
-    console.log(`   ${amount} ALGO sent to ${destinationAddress}`);
+    console.log(
+      `   ${amount} ALGO sent to ${destinationAddress} from liquidity pool`
+    );
     console.log(`   Unique code ${uniqueCode} has been marked as withdrawn\n`);
   } catch (error) {
     console.error("❌ Error processing withdrawal:", error);

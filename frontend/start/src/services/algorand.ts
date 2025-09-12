@@ -1,4 +1,5 @@
 import algosdk from "algosdk";
+import { liquidityPoolService } from "./liquidityPool";
 
 // Browser-compatible text encoding for Buffer functionality
 const textEncoder = new TextEncoder();
@@ -37,7 +38,7 @@ export class AlgorandService {
     const algodPort = 443;
 
     this.algodClient = new algosdk.Algodv2(algodToken, algodServer, algodPort);
-    this.appId = parseInt(import.meta.env.VITE_APP_ID || "745670578");
+    this.appId = parseInt(import.meta.env.VITE_APP_ID || "745696331");
     this.appAddress = algosdk.getApplicationAddress(this.appId);
   }
 
@@ -255,6 +256,26 @@ export class AlgorandService {
     return `https://testnet.algoexplorer.io/tx/${txId}`;
   }
 
+  // Check if user has opted into the application
+  async checkOptInStatus(mnemonic: string): Promise<boolean> {
+    try {
+      const account = this.getAccountFromMnemonic(mnemonic);
+      const accountInfo = await this.algodClient
+        .accountInformation(account.addr)
+        .do();
+
+      const hasOptedIn = accountInfo["apps-local-state"]?.some(
+        (app: any) => app.id === this.appId
+      );
+
+      console.log(`🔍 Opt-in status for ${account.addr}: ${hasOptedIn}`);
+      return hasOptedIn || false;
+    } catch (error) {
+      console.error("Error checking opt-in status:", error);
+      return false;
+    }
+  }
+
   // ===== CASH STORAGE METHODS =====
 
   // Simple encryption function (same as backend)
@@ -300,12 +321,25 @@ export class AlgorandService {
         .getTransactionParams()
         .do();
 
-      // Create application call transaction
+      // Create the data to store
+      const dataToStore = {
+        amount: amount,
+        timestamp: new Date().toISOString(),
+        txId: "", // Will be updated after transaction
+      };
+
+      console.log("📦 Data to store:", dataToStore);
+      console.log("🔐 Encrypted hash:", encryptedHash);
+
+      // Create application call transaction with encrypted hash and amount data
       const appCallTxn = algosdk.makeApplicationNoOpTxnFromObject({
         from: account.addr,
         suggestedParams,
         appIndex: this.appId,
-        appArgs: [textEncoder.encode(encryptedHash)], // Only send hash
+        appArgs: [
+          textEncoder.encode(encryptedHash),
+          textEncoder.encode(JSON.stringify(dataToStore)),
+        ],
       });
 
       // Sign and send transaction
@@ -340,7 +374,7 @@ export class AlgorandService {
     }
   }
 
-  // Withdraw to wallet
+  // Withdraw to wallet (from contract balance)
   async withdrawToWallet(
     mnemonic: string,
     uniqueCode: string,
@@ -350,48 +384,69 @@ export class AlgorandService {
     try {
       const account = this.getAccountFromMnemonic(mnemonic);
 
-      // Validate destination address
-      if (!this.isValidAlgorandAddress(destinationAddress)) {
-        throw new Error("Invalid Algorand destination address");
-      }
+      console.log(`💰 Processing withdrawal request using liquidity pool...\n`);
+      console.log(`✅ Unique code: ${uniqueCode}`);
+      console.log(`💰 Amount: ${amount} ALGO`);
+      console.log(`🎯 Destination: ${destinationAddress}\n`);
 
-      // Check sender balance
-      const senderBalance = await this.getAccountBalance(account.addr);
-      if (senderBalance < amount + 0.1) {
-        throw new Error(
-          `Insufficient balance. Need at least ${
-            amount + 0.1
-          } ALGO (${amount} for withdrawal + 0.1 for fees)`
-        );
-      }
+      // Step 1: Send ALGO from liquidity pool to destination
+      console.log("🏦 Step 1: Sending ALGO from liquidity pool...");
+      const liquidityTxId = await liquidityPoolService.sendToAddress(
+        destinationAddress,
+        amount
+      );
+      console.log(`✅ Liquidity pool transaction: ${liquidityTxId}\n`);
 
-      // Get suggested parameters
-      const suggestedParams = await this.algodClient
-        .getTransactionParams()
-        .do();
+      // Step 2: Mark as withdrawn in contract
+      console.log("📝 Step 2: Marking as withdrawn in contract...");
 
-      // Create payment transaction
+      // Create application call to mark as withdrawn
       const withdrawalAmount = amount * 1e6; // Convert ALGO to microALGO
-      const paymentTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+      const appCallTxn = algosdk.makeApplicationNoOpTxnFromObject({
         from: account.addr,
-        to: destinationAddress,
-        amount: withdrawalAmount,
-        suggestedParams,
-        note: textEncoder.encode(`Withdrawal using code: ${uniqueCode}`),
+        suggestedParams: await this.algodClient.getTransactionParams().do(),
+        appIndex: this.appId,
+        appArgs: [
+          textEncoder.encode(uniqueCode),
+          textEncoder.encode(destinationAddress),
+          algosdk.encodeUint64(withdrawalAmount),
+        ],
       });
 
-      // Sign and send transaction
-      const signedTxn = paymentTxn.signTxn(account.sk);
-      const txId = paymentTxn.txID().toString();
+      // Sign and send the app call transaction
+      const signedTxn = appCallTxn.signTxn(account.sk);
+      const contractTxId = appCallTxn.txID().toString();
 
-      console.log(`📤 Sending withdrawal transaction: ${txId}`);
+      console.log(`📤 Sending contract transaction: ${contractTxId}`);
       const result = await this.algodClient.sendRawTransaction(signedTxn).do();
-      console.log(`✅ Transaction sent: ${result.txId}`);
+      console.log(`✅ Contract transaction sent: ${result.txId}\n`);
 
       // Wait for confirmation
-      console.log("⏳ Waiting for confirmation...");
-      await algosdk.waitForConfirmation(this.algodClient, result.txId, 4);
-      console.log("🎉 Withdrawal confirmed!");
+      console.log("⏳ Waiting for contract confirmation...");
+      const confirmedTxn = await algosdk.waitForConfirmation(
+        this.algodClient,
+        result.txId,
+        4
+      );
+      console.log("🎉 Withdrawal completed!\n");
+
+      console.log(`📋 Withdrawal Summary:`);
+      console.log(`   Liquidity Pool TX: ${liquidityTxId}`);
+      console.log(`   Contract TX: ${result.txId}`);
+      console.log(`   Amount: ${amount} ALGO`);
+      console.log(`   Unique Code: ${uniqueCode}`);
+      console.log(`   Destination: ${destinationAddress}\n`);
+
+      console.log(`🔗 Explorer Links:`);
+      console.log(
+        `   Liquidity TX: https://testnet.algoexplorer.io/tx/${liquidityTxId}`
+      );
+      console.log(
+        `   Contract TX: https://testnet.algoexplorer.io/tx/${result.txId}`
+      );
+      console.log(
+        `   Destination: https://testnet.algoexplorer.io/address/${destinationAddress}\n`
+      );
 
       return result.txId;
     } catch (error) {
@@ -400,100 +455,236 @@ export class AlgorandService {
     }
   }
 
-  // ===== LOCAL STORAGE METHODS =====
+  // ===== BLOCKCHAIN-ONLY METHODS =====
 
-  // Load encryption map from localStorage
-  loadEncryptionMap(): Record<string, WithdrawalData> {
+  // Get all stored cash values from blockchain global state
+  async getAllStoredCashFromBlockchain(): Promise<CashTransaction[]> {
     try {
-      const data = localStorage.getItem("encryption_map");
-      return data ? JSON.parse(data) : {};
+      console.log("🔍 Fetching stored cash from blockchain...");
+
+      // Get application information
+      const appInfo = await this.algodClient
+        .getApplicationByID(this.appId)
+        .do();
+
+      console.log("📋 App Info:", appInfo);
+      console.log("📋 Global State:", appInfo.params["global-state"]);
+
+      if (!appInfo.params["global-state"]) {
+        console.log("❌ No global state found");
+        return [];
+      }
+
+      const cashTransactions: CashTransaction[] = [];
+
+      // Parse global state to find all stored hashes
+      for (const kv of appInfo.params["global-state"]) {
+        const key = atob(kv.key); // Base64 decode
+        console.log(`🔑 Processing key: "${key}"`);
+
+        // Check if this looks like our encrypted hash (12 characters, alphanumeric)
+        if (key.length === 12 && /^[A-Z0-9]+$/.test(key)) {
+          console.log(`✅ Found valid hash: ${key}`);
+          try {
+            const value = atob(kv.value.bytes || ""); // Base64 decode
+            console.log(`📄 Raw value: "${value}"`);
+
+            // Check if it's a withdrawal flag (starts with "WITHDRAWN_")
+            if (value.startsWith("WITHDRAWN_")) {
+              console.log(`⏭️ Skipping withdrawn code: ${key}`);
+              // Skip withdrawn codes in the view
+              continue;
+            }
+
+            // Otherwise, parse as JSON data
+            const data = JSON.parse(value);
+            console.log(`📊 Parsed data:`, data);
+
+            cashTransactions.push({
+              amount: data.amount,
+              timestamp: data.timestamp,
+              txId: data.txId,
+              uniqueId: key,
+            });
+
+            console.log(`✅ Added transaction: ${key} = ${data.amount} ALGO`);
+          } catch (error) {
+            console.log(
+              `❌ Warning: Could not parse data for hash ${key}:`,
+              error
+            );
+          }
+        } else {
+          console.log(
+            `⏭️ Skipping non-hash key: "${key}" (length: ${key.length})`
+          );
+        }
+      }
+
+      console.log(
+        `📈 Total cash transactions found: ${cashTransactions.length}`
+      );
+      return cashTransactions;
     } catch (error) {
-      console.error("Error loading encryption map:", error);
-      return {};
+      console.error("❌ Error getting stored cash from blockchain:", error);
+      return [];
     }
   }
 
-  // Save encryption map to localStorage
-  saveEncryptionMap(map: Record<string, WithdrawalData>): void {
-    try {
-      localStorage.setItem("encryption_map", JSON.stringify(map));
-    } catch (error) {
-      console.error("Error saving encryption map:", error);
-    }
-  }
-
-  // Add cash to local storage
-  addCashToStorage(uniqueId: string, amount: number, txId: string): void {
-    const encryptionMap = this.loadEncryptionMap();
-    encryptionMap[uniqueId] = {
-      amount: amount,
-      timestamp: new Date().toISOString(),
-      txId: txId,
-      withdrawn: false,
-    };
-    this.saveEncryptionMap(encryptionMap);
-  }
-
-  // Mark as withdrawn
-  markAsWithdrawn(uniqueCode: string, withdrawalTxId: string): void {
-    const encryptionMap = this.loadEncryptionMap();
-    if (encryptionMap[uniqueCode]) {
-      encryptionMap[uniqueCode].withdrawn = true;
-      encryptionMap[uniqueCode].withdrawalTxId = withdrawalTxId;
-      encryptionMap[uniqueCode].withdrawalTimestamp = new Date().toISOString();
-      this.saveEncryptionMap(encryptionMap);
-    }
-  }
-
-  // Verify unique code
-  verifyUniqueCode(uniqueCode: string): {
+  // Verify unique code from blockchain
+  async verifyUniqueCodeFromBlockchain(uniqueCode: string): Promise<{
     amount: number;
     valid: boolean;
     message: string;
-  } {
-    const encryptionMap = this.loadEncryptionMap();
-    const decryptedData = encryptionMap[uniqueCode];
+  }> {
+    try {
+      // Get application information
+      const appInfo = await this.algodClient
+        .getApplicationByID(this.appId)
+        .do();
 
-    if (!decryptedData) {
+      if (!appInfo.params["global-state"]) {
+        return {
+          amount: 0,
+          valid: false,
+          message: "❌ No data found on blockchain",
+        };
+      }
+
+      // Look for the unique code in global state
+      for (const kv of appInfo.params["global-state"]) {
+        const key = atob(kv.key); // Base64 decode
+
+        if (key === uniqueCode) {
+          try {
+            const value = atob(kv.value.bytes || ""); // Base64 decode
+
+            // Check if it's a withdrawal flag (starts with "WITHDRAWN_")
+            if (value.startsWith("WITHDRAWN_")) {
+              return {
+                amount: 0,
+                valid: false,
+                message: "❌ This unique code has already been withdrawn",
+              };
+            }
+
+            // Otherwise, parse as JSON data
+            const data = JSON.parse(value);
+
+            return {
+              amount: data.amount,
+              valid: true,
+              message: `✅ Unique code verified. Amount: ${data.amount} ALGO`,
+            };
+          } catch (error) {
+            return {
+              amount: 0,
+              valid: false,
+              message: "❌ Error parsing blockchain data",
+            };
+          }
+        }
+      }
+
       return {
         amount: 0,
         valid: false,
-        message: "❌ Unique code not found in our records",
+        message: "❌ Unique code not found in blockchain records",
       };
-    }
-
-    if (decryptedData.withdrawn) {
+    } catch (error) {
       return {
         amount: 0,
         valid: false,
-        message: "❌ This unique code has already been withdrawn",
+        message: `❌ Error verifying code: ${error}`,
       };
     }
-
-    return {
-      amount: decryptedData.amount,
-      valid: true,
-      message: `✅ Unique code verified. Amount: ${decryptedData.amount} ALGO`,
-    };
   }
 
-  // Get all cash transactions
-  getAllCashTransactions(): CashTransaction[] {
-    const encryptionMap = this.loadEncryptionMap();
-    return Object.entries(encryptionMap).map(([uniqueId, data]) => ({
-      amount: data.amount,
-      timestamp: data.timestamp,
-      txId: data.txId,
-      uniqueId: uniqueId,
-    }));
+  // Get withdrawal history from blockchain
+  async getWithdrawalHistoryFromBlockchain(): Promise<
+    Array<{ uniqueCode: string; data: WithdrawalData }>
+  > {
+    try {
+      // Get application information
+      const appInfo = await this.algodClient
+        .getApplicationByID(this.appId)
+        .do();
+
+      if (!appInfo.params["global-state"]) {
+        return [];
+      }
+
+      const withdrawalHistory: Array<{
+        uniqueCode: string;
+        data: WithdrawalData;
+      }> = [];
+
+      // Parse global state to find withdrawn codes
+      for (const kv of appInfo.params["global-state"]) {
+        const key = atob(kv.key); // Base64 decode
+        const value = atob(kv.value.bytes || ""); // Base64 decode
+
+        // Check if this is a withdrawal flag (starts with "WITHDRAWN_")
+        if (value.startsWith("WITHDRAWN_")) {
+          const txId = value.replace("WITHDRAWN_", "");
+          withdrawalHistory.push({
+            uniqueCode: key,
+            data: {
+              amount: 0, // We don't store the original amount in withdrawal flags
+              timestamp: new Date().toISOString(),
+              withdrawn: true,
+              withdrawalTxId: txId,
+              withdrawalTimestamp: new Date().toISOString(),
+            },
+          });
+        }
+      }
+
+      return withdrawalHistory;
+    } catch (error) {
+      console.error("Error getting withdrawal history from blockchain:", error);
+      return [];
+    }
   }
 
-  // Get withdrawal history
-  getWithdrawalHistory(): Array<{ uniqueCode: string; data: WithdrawalData }> {
-    const encryptionMap = this.loadEncryptionMap();
-    return Object.entries(encryptionMap)
-      .filter(([_, data]) => data.withdrawn)
-      .map(([uniqueCode, data]) => ({ uniqueCode, data }));
+  // Mark unique code as withdrawn on blockchain
+  async markAsWithdrawnOnBlockchain(
+    uniqueCode: string,
+    withdrawalTxId: string
+  ): Promise<void> {
+    try {
+      // Get suggested parameters
+      const suggestedParams = await this.algodClient
+        .getTransactionParams()
+        .do();
+
+      // Create application call transaction to mark as withdrawn
+      const appCallTxn = algosdk.makeApplicationNoOpTxnFromObject({
+        from: this.getAccountFromMnemonic(import.meta.env.VITE_USER_MNEMONIC)
+          .addr,
+        suggestedParams,
+        appIndex: this.appId,
+        appArgs: [
+          textEncoder.encode(uniqueCode),
+          textEncoder.encode(`WITHDRAWN_${withdrawalTxId}`),
+        ],
+      });
+
+      // Sign and send transaction
+      const account = this.getAccountFromMnemonic(
+        import.meta.env.VITE_USER_MNEMONIC
+      );
+      const signedTxn = appCallTxn.signTxn(account.sk);
+      const result = await this.algodClient.sendRawTransaction(signedTxn).do();
+
+      // Wait for confirmation
+      await algosdk.waitForConfirmation(this.algodClient, result.txId, 4);
+
+      console.log(`✅ Withdrawal status updated on blockchain: ${result.txId}`);
+    } catch (error) {
+      console.error("❌ Error marking as withdrawn on blockchain:", error);
+      throw error;
+    }
   }
 }
 

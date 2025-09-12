@@ -4,7 +4,7 @@ import { PeraWalletConnect } from "@perawallet/connect";
 
 // Configuration
 const ALGOD_BASE_URL = "https://testnet-api.algonode.cloud";
-const APP_ID = 745702881; // Your deployed contract ID
+const APP_ID = 745705646; // Your deployed contract ID
 const SERVER_MNEMONIC =
   "stove sunset control drive donor render moral ask issue casual shy poverty woman enter bar evidence ranch rude obtain festival wide horror armor absent pattern"; // Your seed phrase
 

@@ -1,10 +1,27 @@
 # 🚀 AlgoCash - Digital Cash Management System on Algorand
 
+<div align="center">
+  <img src="./img/1.png" alt="AlgoCash Dashboard" width="800"/>
+  <p><em>AlgoCash - Complete Digital Cash Management System</em></p>
+</div>
+
 ## 🎯 Project Overview
 
 **AlgoCash** is a comprehensive digital cash management system built on the Algorand blockchain that enables users to mint, store, and withdraw digital cash notes using encrypted unique codes. The system consists of three main components: a smart contract backend, a full-featured frontend application, and a public claim website.
 
+### 🎬 **Live Demo**
+
+- **Contract ID**: 745702881 on Algorand TestNet
+- **Frontend App**: [View Live Demo](https://your-demo-url.com)
+- **Claim Website**: [Public Claim Interface](https://algo.cptr.app/)
+- **Smart Contract**: [View on AlgoExplorer](https://testnet.explorer.perawallet.app/application/745702881/)
+
 ## 🏗️ System Architecture
+
+<div align="center">
+  <img src="./img/2.png" alt="AlgoCash Architecture" width="800"/>
+  <p><em>Complete System Architecture - Frontend, Backend, and Blockchain Integration</em></p>
+</div>
 
 ### Core Components
 
@@ -50,6 +67,11 @@
 - **dotenv**: Environment variable management
 
 ## 🌟 Key Features
+
+<div align="center">
+  <img src="./img/3.png" alt="AlgoCash Features" width="800"/>
+  <p><em>Core Features - Digital Cash Minting, Smart Contracts, and User Interface</em></p>
+</div>
 
 ### 1. Digital Cash Minting
 
@@ -146,6 +168,11 @@ npm run build     # Build static files
 ```
 
 ## 📱 User Workflows
+
+<div align="center">
+  <img src="./img/4.png" alt="AlgoCash User Workflows" width="800"/>
+  <p><em>Complete User Journey - From Minting to Claiming Digital Cash</em></p>
+</div>
 
 ### 1. Minting Digital Cash
 
@@ -271,6 +298,11 @@ Algocash/
 
 ## 🎯 Use Cases
 
+<div align="center">
+  <img src="./img/5.png" alt="AlgoCash Use Cases" width="800"/>
+  <p><em>Real-World Applications - Gift Cards, Event Tickets, and More</em></p>
+</div>
+
 ### 1. Digital Gift Cards
 
 - Create ALGO-denominated gift cards
@@ -296,6 +328,11 @@ Algocash/
 - Perfect for content monetization
 
 ## 🔮 Future Enhancements
+
+<div align="center">
+  <img src="./img/6.png" alt="AlgoCash Future Roadmap" width="800"/>
+  <p><em>Future Vision - Scalability, Multi-Asset Support, and Enterprise Features</em></p>
+</div>
 
 ### Planned Features
 
@@ -348,6 +385,20 @@ Algocash/
 ## 📄 License
 
 MIT License - Open source and freely available for use and modification.
+
+## 🎬 **Demo & Presentation**
+
+### **PowerPoint Presentation**
+
+- **Download**: [AlgoCash Presentation](./img/Algo_Cash_ppt.pptx)
+- **Format**: 5-slide comprehensive presentation
+- **Content**: Problem statement, features, architecture, business model, and future vision
+
+### **Live Demo Links**
+
+- **Frontend Application**: [View Live Demo](https://your-demo-url.com)
+- **Claim Website**: [Public Claim Interface](https://your-claim-url.com)
+- **Smart Contract**: [View on AlgoExplorer](https://testnet.algoexplorer.io/address/745702881)
 
 ---
 

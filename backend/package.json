@@ -13,7 +13,8 @@
     "cash": "ts-node scripts/cash.ts",
     "withdraw": "ts-node scripts/withdraw.ts",
     "liquidity": "ts-node scripts/liquidity_pool.ts",
-    "setup-liquidity": "ts-node scripts/setup_liquidity.ts"
+    "setup-liquidity": "ts-node scripts/setup_liquidity.ts",
+    "api": "node api-server.js"
   },
   "keywords": [
     "algorand",

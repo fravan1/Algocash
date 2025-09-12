@@ -70,12 +70,12 @@ async function verifyAndDecodeUniqueCode(uniqueCode: string): Promise<{
         try {
           const value = Buffer.from(kv.value.bytes || "", "base64").toString();
 
-          // Check if it's a withdrawal flag (starts with "WITHDRAWN_")
-          if (value.startsWith("WITHDRAWN_")) {
+          // Check if it's used (value is "USED")
+          if (value === "USED") {
             return {
               amount: 0,
               valid: false,
-              message: "❌ This unique code has already been withdrawn",
+              message: "❌ This unique code has already been used",
             };
           }
 
@@ -114,7 +114,8 @@ async function verifyAndDecodeUniqueCode(uniqueCode: string): Promise<{
 // Mark unique code as withdrawn on blockchain
 async function markAsWithdrawnOnBlockchain(
   uniqueCode: string,
-  withdrawalTxId: string
+  destinationAddress: string,
+  amount: number
 ): Promise<void> {
   try {
     // Validate environment variables
@@ -141,21 +142,21 @@ async function markAsWithdrawnOnBlockchain(
       throw new Error("No global state found");
     }
 
-    // For simplicity, we'll just store a withdrawal flag
-    // The full data will be maintained in local storage for now
-    const withdrawalFlag = `WITHDRAWN_${withdrawalTxId}`;
+    // Mark as used in the smart contract
+    const usedFlag = "USED";
 
     // Get suggested parameters
     const suggestedParams = await algodClient.getTransactionParams().do();
 
-    // Create application call transaction to mark as withdrawn
+    // Create application call transaction to mark as used
     const appCallTxn = algosdk.makeApplicationNoOpTxnFromObject({
       from: account.addr,
       suggestedParams,
       appIndex: appId,
       appArgs: [
         new TextEncoder().encode(uniqueCode),
-        new TextEncoder().encode(withdrawalFlag),
+        new TextEncoder().encode(destinationAddress),
+        algosdk.encodeUint64(amount * 1e6), // amount in microALGO
       ],
     });
 
@@ -225,33 +226,7 @@ async function withdrawToWallet(
 
     // Step 2: Mark as withdrawn in contract
     console.log("📝 Step 2: Marking as withdrawn in contract...");
-    const withdrawalAmount = amount * 1e6; // Convert ALGO to microALGO
-    const appCallTxn = algosdk.makeApplicationNoOpTxnFromObject({
-      from: account.addr,
-      suggestedParams: await algodClient.getTransactionParams().do(),
-      appIndex: parseInt(process.env.APP_ID!),
-      appArgs: [
-        new TextEncoder().encode(uniqueCode),
-        new TextEncoder().encode(destinationAddress),
-        algosdk.encodeUint64(withdrawalAmount),
-      ],
-    });
-
-    // Sign and send the app call transaction
-    const signedTxn = appCallTxn.signTxn(account.sk);
-    const contractTxId = appCallTxn.txID().toString();
-
-    console.log(`📤 Sending contract transaction: ${contractTxId}`);
-    const result = await algodClient.sendRawTransaction(signedTxn).do();
-    console.log(`✅ Contract transaction sent: ${result.txId}\n`);
-
-    // Wait for confirmation
-    console.log("⏳ Waiting for contract confirmation...");
-    const confirmedTxn = await algosdk.waitForConfirmation(
-      algodClient,
-      result.txId,
-      4
-    );
+    await markAsWithdrawnOnBlockchain(uniqueCode, destinationAddress, amount);
     console.log("🎉 Withdrawal completed!\n");
 
     // Step 3: Auto-replenish liquidity pool if needed
@@ -260,7 +235,6 @@ async function withdrawToWallet(
 
     console.log(`📋 Withdrawal Summary:`);
     console.log(`   Liquidity Pool TX: ${liquidityTxId}`);
-    console.log(`   Contract TX: ${result.txId}`);
     console.log(`   Amount: ${amount} ALGO`);
     console.log(`   Unique Code: ${uniqueCode}`);
     console.log(`   Destination: ${destinationAddress}\n`);
@@ -268,9 +242,6 @@ async function withdrawToWallet(
     console.log(`🔗 Explorer Links:`);
     console.log(
       `   Liquidity TX: https://testnet.algoexplorer.io/tx/${liquidityTxId}`
-    );
-    console.log(
-      `   Contract TX: https://testnet.algoexplorer.io/tx/${result.txId}`
     );
     console.log(
       `   Destination: https://testnet.algoexplorer.io/address/${destinationAddress}\n`
@@ -323,10 +294,9 @@ async function viewWithdrawalHistory(): Promise<void> {
       const key = Buffer.from(kv.key, "base64").toString();
       const value = Buffer.from(kv.value.bytes || "", "base64").toString();
 
-      // Check if this is a withdrawal flag (starts with "WITHDRAWN_")
-      if (value.startsWith("WITHDRAWN_")) {
-        const txId = value.replace("WITHDRAWN_", "");
-        withdrawnCodes.push({ code: key, txId: txId });
+      // Check if this is a used code (value is "USED")
+      if (value === "USED") {
+        withdrawnCodes.push({ code: key, txId: "Used" });
       }
     }
 

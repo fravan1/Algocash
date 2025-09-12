@@ -15,7 +15,7 @@ const __dirname = path.dirname(__filename);
 const envContent = `# User Configuration
 VITE_USER_MNEMONIC=
 # Contract Configuration
-VITE_APP_ID=
+VITE_APP_ID=745702881
 
 # Network Configuration
 VITE_ALGOD_BASE_URL=https://testnet-api.algonode.cloud
@@ -35,7 +35,7 @@ try {
   console.log("🔧 Configuration:");
   console.log("   - User Wallet: Uses VITE_USER_MNEMONIC");
   console.log("   - Liquidity Pool: Uses VITE_USER_MNEMONIC (same wallet)");
-  console.log("   - Contract: APP_ID=745696331");
+  console.log("   - Contract: APP_ID=745702881");
   console.log("   - Network: TestNet");
   console.log("");
   console.log("🚀 You can now run: npm run dev");

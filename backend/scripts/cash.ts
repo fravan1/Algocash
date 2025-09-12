@@ -40,6 +40,88 @@ function encryptNumber(amount: number): string {
 
 // All data is now stored on blockchain - no local storage needed!
 
+// Check if a unique code is used or active
+async function checkNoteStatus(uniqueCode: string): Promise<{
+  exists: boolean;
+  isUsed: boolean;
+  message: string;
+}> {
+  try {
+    // Validate environment variables
+    const requiredEnvVars = ["ALGOD_BASE_URL", "SERVER_MNEMONIC", "APP_ID"];
+    for (const envVar of requiredEnvVars) {
+      if (!process.env[envVar]) {
+        throw new Error(`Missing required environment variable: ${envVar}`);
+      }
+    }
+
+    // Initialize Algod client
+    const algodToken = "";
+    const algodServer = process.env.ALGOD_BASE_URL!;
+    const algodPort = 443;
+    const algodClient = new algosdk.Algodv2(algodToken, algodServer, algodPort);
+
+    const appId = parseInt(process.env.APP_ID!);
+
+    // Get application information
+    const appInfo = await algodClient.getApplicationByID(appId).do();
+
+    if (!appInfo.params["global-state"]) {
+      return {
+        exists: false,
+        isUsed: false,
+        message: "❌ No data found on blockchain",
+      };
+    }
+
+    // Look for the unique code in global state
+    for (const kv of appInfo.params["global-state"]) {
+      const key = Buffer.from(kv.key, "base64").toString();
+
+      if (key === uniqueCode) {
+        try {
+          const value = Buffer.from(kv.value.bytes || "", "base64").toString();
+
+          // Check if it's used (value is "USED")
+          if (value === "USED") {
+            return {
+              exists: true,
+              isUsed: true,
+              message: "❌ Note has already been used",
+            };
+          }
+
+          // Otherwise, it's active (contains JSON data)
+          const data = JSON.parse(value);
+          return {
+            exists: true,
+            isUsed: false,
+            message: `✅ Note is active and available for use (${data.amount} ALGO)`,
+          };
+        } catch (error) {
+          return {
+            exists: true,
+            isUsed: false,
+            message: "❌ Error parsing note data",
+          };
+        }
+      }
+    }
+
+    return {
+      exists: false,
+      isUsed: false,
+      message: "❌ Note not found in blockchain records",
+    };
+  } catch (error) {
+    return {
+      exists: false,
+      isUsed: false,
+      message: `❌ Error checking note status: ${error}`,
+    };
+  }
+}
+
 // Get all stored hashes from blockchain global state
 async function getAllStoredHashesFromBlockchain(): Promise<
   Array<{ hash: string; data: any }>
@@ -346,6 +428,9 @@ async function main() {
     console.log(
       "  npm run cash view           - View all stored cash values (decrypted) from blockchain"
     );
+    console.log(
+      "  npm run cash check <code>   - Check if a unique code is used or active"
+    );
     console.log("");
     console.log("Examples:");
     console.log(
@@ -357,6 +442,9 @@ async function main() {
     console.log(
       "  npm run cash view           - View decrypted values from blockchain"
     );
+    console.log(
+      "  npm run cash check ABC123   - Check status of unique code ABC123"
+    );
     console.log("");
     return;
   }
@@ -366,6 +454,24 @@ async function main() {
   // Check if first argument is "view"
   if (firstArg === "view") {
     await viewCashTable();
+    return;
+  }
+
+  // Check if first argument is "check"
+  if (firstArg === "check") {
+    if (args.length < 2) {
+      console.log("❌ Please provide a unique code to check");
+      console.log("Usage: npm run cash check <unique_code>");
+      return;
+    }
+    const uniqueCode = args[1];
+    console.log(`🔍 Checking status of unique code: ${uniqueCode}\n`);
+    const status = await checkNoteStatus(uniqueCode);
+    console.log(`📋 Status Result:`);
+    console.log(`   Code: ${uniqueCode}`);
+    console.log(`   Exists: ${status.exists ? "Yes" : "No"}`);
+    console.log(`   Used: ${status.isUsed ? "Yes" : "No"}`);
+    console.log(`   Message: ${status.message}\n`);
     return;
   }
 

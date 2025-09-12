@@ -77,7 +77,7 @@ const ContractInterface: React.FC<ContractInterfaceProps> = ({
         localStorageService.initializeBalance(contractBal);
         setRemainingBalance(contractBal);
       } else {
-        // Use local balance
+        // Use local balance for available minting
         setRemainingBalance(localBalance);
       }
     } catch (error) {
@@ -118,14 +118,13 @@ const ContractInterface: React.FC<ContractInterfaceProps> = ({
       setShowSuccessPopup(true);
       setMessage(`✅ Deposit successful! Transaction ID: ${txId}`);
 
-      // Reload balances and update local balance
+      // Reload balances and add deposit amount to local balance
       await loadBalances();
-      // Update local balance with new contract balance
-      const newContractBal = await algorandService.getAccountBalance(
-        appInfo.appAddress
-      );
-      localStorageService.setRemainingBalance(newContractBal);
-      setRemainingBalance(newContractBal);
+      // Add the deposited amount to local balance
+      const currentLocalBalance = localStorageService.getRemainingBalance();
+      const newLocalBalance = currentLocalBalance + amount;
+      localStorageService.setRemainingBalance(newLocalBalance);
+      setRemainingBalance(newLocalBalance);
     } catch (error) {
       setMessage(`❌ Deposit failed: ${error}`);
     } finally {
@@ -223,7 +222,7 @@ const ContractInterface: React.FC<ContractInterfaceProps> = ({
       setVerificationResult(null);
       setShowWithdrawalModal(false);
 
-      // Reload balances
+      // Reload balances - this will update remaining balance
       await loadBalances();
     } catch (error) {
       let errorMessage = `❌ Error processing withdrawal: ${error}`;
@@ -315,15 +314,14 @@ const ContractInterface: React.FC<ContractInterfaceProps> = ({
       setShowMintModal(false);
 
       // Subtract minted amount from local balance
-      const newRemainingBalance =
+      const newLocalBalance =
         localStorageService.subtractFromBalance(totalAmount);
-      setRemainingBalance(newRemainingBalance);
+      setRemainingBalance(newLocalBalance);
 
       // Reset form
       setDenominationQuantities({ 1: 0, 2: 0, 5: 0, 10: 0 });
 
-      // Reload balances and digital notes
-      await loadBalances();
+      // Reload digital notes
       await loadDigitalNotes();
     } catch (error: any) {
       setMessage(`❌ Minting failed: ${error.message}`);

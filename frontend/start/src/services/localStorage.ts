@@ -48,6 +48,19 @@ class LocalStorageService {
     }
   }
 
+  // Add amount to remaining balance
+  addToBalance(amount: number): number {
+    try {
+      const currentBalance = this.getRemainingBalance();
+      const newBalance = currentBalance + amount;
+      this.setRemainingBalance(newBalance);
+      return newBalance;
+    } catch (error) {
+      console.error("Error adding to balance:", error);
+      return 0;
+    }
+  }
+
   // Initialize balance from contract balance
   initializeBalance(contractBalance: number): void {
     try {

@@ -37,7 +37,7 @@ export class AlgorandService {
     const algodPort = 443;
 
     this.algodClient = new algosdk.Algodv2(algodToken, algodServer, algodPort);
-    this.appId = parseInt(import.meta.env.VITE_APP_ID || "745700167");
+    this.appId = parseInt(import.meta.env.VITE_APP_ID || "745702881");
     this.appAddress = algosdk.getApplicationAddress(this.appId);
   }
 
@@ -499,10 +499,10 @@ export class AlgorandService {
             const value = atob(kv.value.bytes || ""); // Base64 decode
             console.log(`📄 Raw value: "${value}"`);
 
-            // Check if it's a withdrawal flag (starts with "WITHDRAWN_")
-            if (value.startsWith("WITHDRAWN_")) {
-              console.log(`⏭️ Skipping withdrawn code: ${key}`);
-              // Skip withdrawn codes in the view
+            // Check if it's used (value is "USED")
+            if (value === "USED") {
+              console.log(`⏭️ Skipping used code: ${key}`);
+              // Skip used codes in the view
               continue;
             }
 
@@ -569,12 +569,12 @@ export class AlgorandService {
           try {
             const value = atob(kv.value.bytes || ""); // Base64 decode
 
-            // Check if it's a withdrawal flag (starts with "WITHDRAWN_")
-            if (value.startsWith("WITHDRAWN_")) {
+            // Check if it's used (value is "USED")
+            if (value === "USED") {
               return {
                 amount: 0,
                 valid: false,
-                message: "❌ This unique code has already been withdrawn",
+                message: "❌ This unique code has already been used",
               };
             }
 
@@ -634,16 +634,15 @@ export class AlgorandService {
         const key = atob(kv.key); // Base64 decode
         const value = atob(kv.value.bytes || ""); // Base64 decode
 
-        // Check if this is a withdrawal flag (starts with "WITHDRAWN_")
-        if (value.startsWith("WITHDRAWN_")) {
-          const txId = value.replace("WITHDRAWN_", "");
+        // Check if this is a used code (value is "USED")
+        if (value === "USED") {
           withdrawalHistory.push({
             uniqueCode: key,
             data: {
-              amount: 0, // We don't store the original amount in withdrawal flags
+              amount: 0, // We don't store the original amount in used flags
               timestamp: new Date().toISOString(),
               withdrawn: true,
-              withdrawalTxId: txId,
+              withdrawalTxId: "Used",
               withdrawalTimestamp: new Date().toISOString(),
             },
           });
@@ -657,43 +656,62 @@ export class AlgorandService {
     }
   }
 
-  // Mark unique code as withdrawn on blockchain
-  async markAsWithdrawnOnBlockchain(
-    uniqueCode: string,
-    withdrawalTxId: string
-  ): Promise<void> {
+  // Check note status from blockchain
+  async checkNoteStatus(uniqueCode: string): Promise<{
+    exists: boolean;
+    isUsed: boolean;
+    message: string;
+  }> {
     try {
-      // Get suggested parameters
-      const suggestedParams = await this.algodClient
-        .getTransactionParams()
+      // Get application information
+      const appInfo = await this.algodClient
+        .getApplicationByID(this.appId)
         .do();
 
-      // Create application call transaction to mark as withdrawn
-      const appCallTxn = algosdk.makeApplicationNoOpTxnFromObject({
-        from: this.getAccountFromMnemonic(import.meta.env.VITE_USER_MNEMONIC)
-          .addr,
-        suggestedParams,
-        appIndex: this.appId,
-        appArgs: [
-          textEncoder.encode(uniqueCode),
-          textEncoder.encode(`WITHDRAWN_${withdrawalTxId}`),
-        ],
-      });
+      if (!appInfo.params["global-state"]) {
+        return {
+          exists: false,
+          isUsed: false,
+          message: "❌ No data found on blockchain",
+        };
+      }
 
-      // Sign and send transaction
-      const account = this.getAccountFromMnemonic(
-        import.meta.env.VITE_USER_MNEMONIC
-      );
-      const signedTxn = appCallTxn.signTxn(account.sk);
-      const result = await this.algodClient.sendRawTransaction(signedTxn).do();
+      // Look for the unique code in global state
+      for (const kv of appInfo.params["global-state"]) {
+        const key = atob(kv.key); // Base64 decode
 
-      // Wait for confirmation
-      await algosdk.waitForConfirmation(this.algodClient, result.txId, 4);
+        if (key === uniqueCode) {
+          const value = atob(kv.value.bytes || ""); // Base64 decode
 
-      console.log(`✅ Withdrawal status updated on blockchain: ${result.txId}`);
+          // Check if it's used (value is "USED")
+          if (value === "USED") {
+            return {
+              exists: true,
+              isUsed: true,
+              message: "❌ This unique code has already been used",
+            };
+          }
+
+          // Otherwise, it exists and is active
+          return {
+            exists: true,
+            isUsed: false,
+            message: "✅ Unique code is active and available",
+          };
+        }
+      }
+
+      return {
+        exists: false,
+        isUsed: false,
+        message: "❌ Unique code not found in blockchain records",
+      };
     } catch (error) {
-      console.error("❌ Error marking as withdrawn on blockchain:", error);
-      throw error;
+      return {
+        exists: false,
+        isUsed: false,
+        message: `❌ Error checking code status: ${error}`,
+      };
     }
   }
 }

@@ -76,6 +76,16 @@ handle_noop:
     &&
     bnz handle_withdrawal
     
+    // Check if this is a status check call
+    txn TypeEnum
+    int appl
+    ==
+    txn NumAppArgs
+    int 1
+    ==
+    &&
+    bnz handle_status_check
+    
     // For deployment and other NoOp calls without args, accept
     int 1
     return
@@ -140,12 +150,12 @@ handle_cash_storage:
     int 1
     return
 
-// Handle withdrawal transactions (mark as withdrawn only)
+// Handle withdrawal transactions (mark as used only)
 handle_withdrawal:
     // Args: [unique_code, destination_address, amount]
-    // This will only mark the code as withdrawn (no ALGO transfer)
+    // This will only mark the code as used (no ALGO transfer)
     
-    // Verify the unique code exists and hasn't been withdrawn
+    // Verify the unique code exists and hasn't been used
     txn ApplicationArgs 0  // unique_code
     app_global_get
     dup
@@ -156,27 +166,51 @@ handle_withdrawal:
     err  // Code doesn't exist
     
 code_exists:
-    // Check if it's already withdrawn (starts with "WITHDRAWN_")
-    byte "WITHDRAWN_"
-    swap
-    extract 0 10  // Get first 10 bytes
+    // Check if it's already used (value is "USED")
+    byte "USED"
     ==
-    bnz already_withdrawn
-    // Code exists and not withdrawn, proceed with marking as withdrawn
+    bnz already_used
+    // Code exists and not used, proceed with marking as used
     
-    // Mark the unique code as withdrawn in global state
+    // Mark the unique code as used in global state
     txn ApplicationArgs 0  // unique_code
-    byte "WITHDRAWN_"
-    txn ApplicationArgs 1  // destination_address (for tracking)
-    concat
+    byte "USED"
     app_global_put
     
     // Accept withdrawal (no ALGO transfer from contract)
     int 1
     return
 
-already_withdrawn:
-    err  // Code already withdrawn
+already_used:
+    err  // Code already used
+
+// Handle status check transactions (check if note is used without marking it)
+handle_status_check:
+    // Args: [unique_code]
+    // This will check if the code exists and is used, but won't change state
+    
+    // Get the unique code from args
+    txn ApplicationArgs 0  // unique_code
+    app_global_get
+    dup
+    len  // Get length of the value
+    int 0
+    !=  // Check if length is not 0 (meaning value exists)
+    bnz status_code_exists
+    err  // Code doesn't exist
+    
+status_code_exists:
+    // Check if it's used (value is "USED")
+    byte "USED"
+    ==
+    bnz status_is_used
+    // Code exists and is active
+    int 1  // Return 1 for active
+    return
+
+status_is_used:
+    int 0  // Return 0 for used
+    return
 
 // Handle OptIn transactions (users joining the application)
 handle_optin:

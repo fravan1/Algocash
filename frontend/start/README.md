@@ -29,7 +29,7 @@ Create a `.env` file in the `frontend/start` directory:
 VITE_ALGOD_BASE_URL=https://testnet-api.algonode.cloud
 
 # Application ID (from backend deployment)
-VITE_APP_ID=745695439
+VITE_APP_ID=745702881
 
 # User's seed phrase (for frontend transactions)
 # Replace with your actual 25-word mnemonic
@@ -51,7 +51,7 @@ The application will be available at `http://localhost:5173`
 | Variable              | Description               | Example                              |
 | --------------------- | ------------------------- | ------------------------------------ |
 | `VITE_ALGOD_BASE_URL` | Algorand API endpoint     | `https://testnet-api.algonode.cloud` |
-| `VITE_APP_ID`         | Your deployed contract ID | `745695439`                          |
+| `VITE_APP_ID`         | Your deployed contract ID | `745702881`                          |
 | `VITE_USER_MNEMONIC`  | Your 25-word seed phrase  | `word1 word2 ... word25`             |
 
 ### Backend Integration

@@ -99,7 +99,9 @@ handle_deposit:
     return
     
 deposit_valid:
-    // Accept deposit
+    // For now, we'll accept all deposits without tracking
+    // The frontend will handle opt-in automatically
+    // This prevents the app_local_get_ex error
     int 1
     return
 

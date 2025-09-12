@@ -3,7 +3,6 @@ import { liquidityPoolService } from "./liquidityPool";
 
 // Browser-compatible text encoding for Buffer functionality
 const textEncoder = new TextEncoder();
-const textDecoder = new TextDecoder();
 
 // Cash storage interface
 export interface CashTransaction {
@@ -38,7 +37,7 @@ export class AlgorandService {
     const algodPort = 443;
 
     this.algodClient = new algosdk.Algodv2(algodToken, algodServer, algodPort);
-    this.appId = parseInt(import.meta.env.VITE_APP_ID || "745696331");
+    this.appId = parseInt(import.meta.env.VITE_APP_ID || "745700167");
     this.appAddress = algosdk.getApplicationAddress(this.appId);
   }
 
@@ -60,10 +59,37 @@ export class AlgorandService {
     }
   }
 
+  // Check if user is opted into the application
+  async isOptedIn(mnemonic: string): Promise<boolean> {
+    try {
+      const account = this.getAccountFromMnemonic(mnemonic);
+      const accountInfo = await this.algodClient
+        .accountInformation(account.addr)
+        .do();
+
+      const hasOptedIn = accountInfo["apps-local-state"]?.some(
+        (app: any) => app.id === this.appId
+      );
+
+      return hasOptedIn || false;
+    } catch (error) {
+      console.error("Error checking opt-in status:", error);
+      return false;
+    }
+  }
+
   // Send deposit to application (group transaction)
   async sendDeposit(mnemonic: string, amount: number): Promise<string> {
     try {
       const account = this.getAccountFromMnemonic(mnemonic);
+
+      // Check if user is opted in, if not, opt them in first
+      const isOptedIn = await this.isOptedIn(mnemonic);
+      if (!isOptedIn) {
+        console.log("User not opted in, opting in first...");
+        await this.optIntoApp(mnemonic);
+        console.log("Opt-in completed, proceeding with deposit...");
+      }
 
       // Check sender balance
       const senderBalance = await this.getAccountBalance(account.addr);
@@ -143,7 +169,6 @@ export class AlgorandService {
 
       // Sign and send transaction
       const signedTxn = optInTxn.signTxn(account.sk);
-      const txId = optInTxn.txID().toString();
 
       const result = await this.algodClient.sendRawTransaction(signedTxn).do();
 
@@ -176,7 +201,6 @@ export class AlgorandService {
 
       // Sign and send transaction
       const signedTxn = noOpTxn.signTxn(account.sk);
-      const txId = noOpTxn.txID().toString();
 
       const result = await this.algodClient.sendRawTransaction(signedTxn).do();
 
@@ -364,16 +388,6 @@ export class AlgorandService {
 
   // ===== WITHDRAWAL METHODS =====
 
-  // Validate Algorand address
-  private isValidAlgorandAddress(address: string): boolean {
-    try {
-      algosdk.decodeAddress(address);
-      return true;
-    } catch (error) {
-      return false;
-    }
-  }
-
   // Withdraw to wallet (from contract balance)
   async withdrawToWallet(
     mnemonic: string,
@@ -423,11 +437,7 @@ export class AlgorandService {
 
       // Wait for confirmation
       console.log("⏳ Waiting for contract confirmation...");
-      const confirmedTxn = await algosdk.waitForConfirmation(
-        this.algodClient,
-        result.txId,
-        4
-      );
+      await algosdk.waitForConfirmation(this.algodClient, result.txId, 4);
       console.log("🎉 Withdrawal completed!\n");
 
       console.log(`📋 Withdrawal Summary:`);

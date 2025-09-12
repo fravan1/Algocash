@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { algorandService } from "../services/algorand";
+import { localStorageService } from "../services/localStorage";
 
 interface DigitalNote {
   id: string;
@@ -17,6 +18,7 @@ const ContractInterface: React.FC<ContractInterfaceProps> = ({
 }) => {
   const [userBalance, setUserBalance] = useState<number>(0);
   const [contractBalance, setContractBalance] = useState<number>(0);
+  const [remainingBalance, setRemainingBalance] = useState<number>(0);
   const [depositAmount, setDepositAmount] = useState<string>("1");
   const [loading, setLoading] = useState<boolean>(false);
   const [message, setMessage] = useState<string>("");
@@ -26,6 +28,17 @@ const ContractInterface: React.FC<ContractInterfaceProps> = ({
   // Mint states
   const [showMintModal, setShowMintModal] = useState<boolean>(false);
   const [digitalNotes, setDigitalNotes] = useState<DigitalNote[]>([]);
+
+  // Withdrawal states
+  const [showWithdrawalModal, setShowWithdrawalModal] =
+    useState<boolean>(false);
+  const [uniqueCode, setUniqueCode] = useState<string>("");
+  const [destinationAddress, setDestinationAddress] = useState<string>("");
+  const [verificationResult, setVerificationResult] = useState<{
+    amount: number;
+    valid: boolean;
+    message: string;
+  } | null>(null);
 
   // Individual denomination quantities
   const [denominationQuantities, setDenominationQuantities] = useState<{
@@ -56,6 +69,17 @@ const ContractInterface: React.FC<ContractInterfaceProps> = ({
 
       setUserBalance(userBal);
       setContractBalance(contractBal);
+
+      // Initialize or get remaining balance from local storage
+      const localBalance = localStorageService.getRemainingBalance();
+      if (localBalance === 0) {
+        // First time or no local balance, initialize with contract balance
+        localStorageService.initializeBalance(contractBal);
+        setRemainingBalance(contractBal);
+      } else {
+        // Use local balance
+        setRemainingBalance(localBalance);
+      }
     } catch (error) {
       setMessage(`Error loading balances: ${error}`);
     } finally {
@@ -94,8 +118,14 @@ const ContractInterface: React.FC<ContractInterfaceProps> = ({
       setShowSuccessPopup(true);
       setMessage(`✅ Deposit successful! Transaction ID: ${txId}`);
 
-      // Reload balances
+      // Reload balances and update local balance
       await loadBalances();
+      // Update local balance with new contract balance
+      const newContractBal = await algorandService.getAccountBalance(
+        appInfo.appAddress
+      );
+      localStorageService.setRemainingBalance(newContractBal);
+      setRemainingBalance(newContractBal);
     } catch (error) {
       setMessage(`❌ Deposit failed: ${error}`);
     } finally {
@@ -118,6 +148,102 @@ const ContractInterface: React.FC<ContractInterfaceProps> = ({
     }
   };
 
+  const handleVerifyCode = async () => {
+    if (!uniqueCode.trim()) {
+      setVerificationResult({
+        amount: 0,
+        valid: false,
+        message: "Please enter a unique code",
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const result = await algorandService.verifyUniqueCodeFromBlockchain(
+        uniqueCode
+      );
+      setVerificationResult(result);
+    } catch (error) {
+      setVerificationResult({
+        amount: 0,
+        valid: false,
+        message: `Error verifying code: ${error}`,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleWithdraw = async () => {
+    try {
+      if (!verificationResult || !verificationResult.valid) {
+        setMessage("❌ Please verify a valid unique code first");
+        return;
+      }
+
+      if (!destinationAddress.trim()) {
+        setMessage("❌ Please enter a destination address");
+        return;
+      }
+
+      if (destinationAddress.trim().length < 10) {
+        setMessage("❌ Please enter a valid Algorand address");
+        return;
+      }
+
+      setLoading(true);
+      setMessage("Processing withdrawal...");
+
+      const amount = verificationResult.amount;
+
+      // Process withdrawal
+      const txId = await algorandService.withdrawToWallet(
+        userMnemonic,
+        uniqueCode,
+        destinationAddress,
+        amount
+      );
+
+      setLastTxId(txId);
+      setMessage(
+        `✅ Withdrawal successful! ${amount} ALGO sent to ${destinationAddress}`
+      );
+
+      // Mark the note as used in the local state
+      setDigitalNotes((prevNotes) =>
+        prevNotes.map((note) =>
+          note.id === uniqueCode ? { ...note, status: "used" as const } : note
+        )
+      );
+
+      // Clear form
+      setUniqueCode("");
+      setDestinationAddress("");
+      setVerificationResult(null);
+      setShowWithdrawalModal(false);
+
+      // Reload balances
+      await loadBalances();
+    } catch (error) {
+      let errorMessage = `❌ Error processing withdrawal: ${error}`;
+
+      if (errorMessage.includes("unavailable Account")) {
+        errorMessage = `❌ Destination address is not available on TestNet. Please ensure the address exists and is funded.`;
+      } else if (errorMessage.includes("overspend")) {
+        errorMessage = `❌ Contract has insufficient balance. Please deposit more ALGO to the contract first.`;
+      } else if (
+        errorMessage.includes("Invalid Algorand destination address")
+      ) {
+        errorMessage = `❌ Invalid address format. Please enter a valid Algorand address.`;
+      }
+
+      setMessage(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleMintNotes = async () => {
     // Calculate total amount from all denominations
     const totalAmount = Object.entries(denominationQuantities).reduce(
@@ -130,9 +256,9 @@ const ContractInterface: React.FC<ContractInterfaceProps> = ({
       return;
     }
 
-    if (totalAmount > contractBalance) {
+    if (totalAmount > remainingBalance) {
       setMessage(
-        `❌ Insufficient contract balance. Available: ${contractBalance.toFixed(
+        `❌ Insufficient remaining balance. Available: ${remainingBalance.toFixed(
           4
         )} ALGO, Requested: ${totalAmount.toFixed(4)} ALGO`
       );
@@ -187,6 +313,11 @@ const ContractInterface: React.FC<ContractInterfaceProps> = ({
         `✅ Minted ${newNotes.length} notes (Total: ${totalAmount} ALGO)`
       );
       setShowMintModal(false);
+
+      // Subtract minted amount from local balance
+      const newRemainingBalance =
+        localStorageService.subtractFromBalance(totalAmount);
+      setRemainingBalance(newRemainingBalance);
 
       // Reset form
       setDenominationQuantities({ 1: 0, 2: 0, 5: 0, 10: 0 });
@@ -316,34 +447,37 @@ const ContractInterface: React.FC<ContractInterfaceProps> = ({
             </div>
           </div>
 
-          {/* Escrow Balance */}
+          {/* Remaining Balance */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">
-                Contract Balance
+                Available for Minting
               </h3>
               <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                <span className="text-blue-600 font-bold text-sm">📦</span>
+                <span className="text-blue-600 font-bold text-sm">💰</span>
               </div>
             </div>
             <div className="text-center">
               <p className="text-3xl font-bold text-blue-600 mb-2">
-                {contractBalance.toFixed(4)} ALGO
+                {remainingBalance.toFixed(4)} ALGO
               </p>
-              <p className="text-sm text-gray-500">Available for minting</p>
+              <p className="text-sm text-gray-500">Remaining balance</p>
+              <p className="text-xs text-gray-400 mt-1">
+                Contract total: {contractBalance.toFixed(4)} ALGO
+              </p>
             </div>
           </div>
         </div>
 
         {/* Action Buttons */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
           {/* Mint Button */}
           <button
             onClick={() => {
               setMessage(""); // Clear any previous messages
               setShowMintModal(true);
             }}
-            disabled={loading || contractBalance <= 0}
+            disabled={loading || remainingBalance <= 0}
             className="flex items-center justify-center px-6 py-4 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:border-blue-300"
           >
             <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
@@ -357,7 +491,10 @@ const ContractInterface: React.FC<ContractInterfaceProps> = ({
 
           {/* Withdrawal Button */}
           <button
-            onClick={() => setMessage("Withdrawal feature coming soon!")}
+            onClick={() => {
+              setMessage(""); // Clear any previous messages
+              setShowWithdrawalModal(true);
+            }}
             className="flex items-center justify-center px-6 py-4 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 hover:border-green-300"
           >
             <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center mr-3">
@@ -377,34 +514,9 @@ const ContractInterface: React.FC<ContractInterfaceProps> = ({
             </div>
             <div className="text-left">
               <p className="font-semibold text-gray-900">Withdraw</p>
-              <p className="text-xs text-gray-500">Coming soon</p>
-            </div>
-          </button>
-
-          {/* Deposit Button */}
-          <button
-            onClick={handleDeposit}
-            disabled={loading}
-            className="flex items-center justify-center px-6 py-4 bg-blue-600 text-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700"
-          >
-            <div className="w-8 h-8 bg-white bg-opacity-20 rounded-lg flex items-center justify-center mr-3">
-              <svg
-                className="w-4 h-4 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                />
-              </svg>
-            </div>
-            <div className="text-left">
-              <p className="font-semibold">Deposit</p>
-              <p className="text-xs text-blue-100">Add ALGO to contract</p>
+              <p className="text-xs text-gray-500">
+                Withdraw using unique code
+              </p>
             </div>
           </button>
         </div>
@@ -448,43 +560,99 @@ const ContractInterface: React.FC<ContractInterfaceProps> = ({
               Your Minted Digital Notes
             </h3>
 
-            <div className="space-y-3">
-              {digitalNotes.map((note) => (
-                <div
-                  key={note.id}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200"
-                >
-                  <div className="flex items-center space-x-4">
-                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <span className="text-blue-600 font-bold text-sm">
-                        {note.amount}
-                      </span>
-                    </div>
-                    <div>
-                      <p className="font-semibold text-gray-900">
-                        {note.amount} ALGO Note
-                      </p>
-                      <p className="text-sm text-gray-600 font-mono">
-                        ID: {note.id}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Created: {new Date(note.mintedAt).toLocaleString()}
-                      </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {digitalNotes.map((note) => {
+                const isUsed = note.status !== "active";
+                return (
+                  <div
+                    key={note.id}
+                    className={`relative p-4 rounded-lg border transition-all duration-200 ${
+                      isUsed
+                        ? "bg-gray-100 border-gray-300 opacity-60"
+                        : "bg-white border-gray-200 hover:shadow-md hover:border-blue-300"
+                    }`}
+                  >
+                    {/* Used Overlay */}
+                    {isUsed && (
+                      <div className="absolute inset-0 bg-gray-200 bg-opacity-50 rounded-lg flex items-center justify-center">
+                        <div className="bg-gray-600 text-white px-3 py-1 rounded-full text-xs font-bold">
+                          USED
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Note Content */}
+                    <div className={`${isUsed ? "opacity-50" : ""}`}>
+                      {/* Denomination Badge */}
+                      <div className="flex items-center justify-center mb-3">
+                        <div
+                          className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                            isUsed ? "bg-gray-300" : "bg-blue-100"
+                          }`}
+                        >
+                          <span
+                            className={`font-bold text-lg ${
+                              isUsed ? "text-gray-600" : "text-blue-600"
+                            }`}
+                          >
+                            {note.amount}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Note Details */}
+                      <div className="text-center space-y-2">
+                        <h4
+                          className={`font-semibold ${
+                            isUsed
+                              ? "text-gray-500 line-through"
+                              : "text-gray-900"
+                          }`}
+                        >
+                          {note.amount} ALGO Note
+                        </h4>
+
+                        <div className="space-y-1">
+                          <p
+                            className={`text-xs font-mono ${
+                              isUsed ? "text-gray-400" : "text-gray-600"
+                            }`}
+                          >
+                            ID: {note.id}
+                          </p>
+                          <p
+                            className={`text-xs ${
+                              isUsed ? "text-gray-400" : "text-gray-500"
+                            }`}
+                          >
+                            {new Date(note.mintedAt).toLocaleDateString()}
+                          </p>
+                          <p
+                            className={`text-xs ${
+                              isUsed ? "text-gray-400" : "text-gray-500"
+                            }`}
+                          >
+                            {new Date(note.mintedAt).toLocaleTimeString()}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Status Badge */}
+                      <div className="mt-3 flex justify-center">
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            isUsed
+                              ? "bg-gray-200 text-gray-600"
+                              : "bg-green-100 text-green-800"
+                          }`}
+                        >
+                          {isUsed ? "Used" : "Available"}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        note.status === "active"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-red-100 text-red-800"
-                      }`}
-                    >
-                      {note.status === "active" ? "Available" : "Used"}
-                    </span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -714,10 +882,13 @@ const ContractInterface: React.FC<ContractInterfaceProps> = ({
                 {/* Available Balance */}
                 <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                   <p className="text-blue-600 mb-1 text-sm font-medium">
-                    Available Balance
+                    Available Balance for Minting
                   </p>
                   <p className="text-2xl font-bold text-blue-700">
-                    {contractBalance.toFixed(4)} ALGO
+                    {remainingBalance.toFixed(4)} ALGO
+                  </p>
+                  <p className="text-xs text-blue-500 mt-1">
+                    Contract total: {contractBalance.toFixed(4)} ALGO
                   </p>
                 </div>
 
@@ -728,7 +899,7 @@ const ContractInterface: React.FC<ContractInterfaceProps> = ({
                   </label>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {[1, 2, 5, 10].map((denom) => {
-                      const maxQuantity = Math.floor(contractBalance / denom);
+                      const maxQuantity = Math.floor(remainingBalance / denom);
                       const currentQuantity =
                         denominationQuantities[denom] || 0;
                       return (
@@ -760,16 +931,16 @@ const ContractInterface: React.FC<ContractInterfaceProps> = ({
                               value={currentQuantity}
                               onChange={(e) => {
                                 const value = parseInt(e.target.value) || 0;
-                                // Validate that the total doesn't exceed contract balance
+                                // Validate that the total doesn't exceed remaining balance
                                 const currentTotal =
                                   getTotalFromQuantities() -
                                   denom * currentQuantity +
                                   denom * value;
-                                if (currentTotal <= contractBalance) {
+                                if (currentTotal <= remainingBalance) {
                                   updateDenominationQuantity(denom, value);
                                 } else {
                                   setMessage(
-                                    `❌ Cannot mint more than available balance. Max for ${denom} ALGO: ${maxQuantity}`
+                                    `❌ Cannot mint more than remaining balance. Max for ${denom} ALGO: ${maxQuantity}`
                                   );
                                 }
                               }}
@@ -800,14 +971,14 @@ const ContractInterface: React.FC<ContractInterfaceProps> = ({
                 {getTotalNotes() > 0 && (
                   <div
                     className={`p-4 rounded-lg border ${
-                      getTotalFromQuantities() > contractBalance * 0.9
+                      getTotalFromQuantities() > remainingBalance * 0.9
                         ? "bg-orange-50 border-orange-200"
                         : "bg-green-50 border-green-200"
                     }`}
                   >
                     <p
                       className={`mb-2 text-sm font-medium ${
-                        getTotalFromQuantities() > contractBalance * 0.9
+                        getTotalFromQuantities() > remainingBalance * 0.9
                           ? "text-orange-600"
                           : "text-green-600"
                       }`}
@@ -818,7 +989,7 @@ const ContractInterface: React.FC<ContractInterfaceProps> = ({
                       <div>
                         <p
                           className={`text-lg font-bold ${
-                            getTotalFromQuantities() > contractBalance * 0.9
+                            getTotalFromQuantities() > remainingBalance * 0.9
                               ? "text-orange-700"
                               : "text-green-700"
                           }`}
@@ -827,7 +998,7 @@ const ContractInterface: React.FC<ContractInterfaceProps> = ({
                         </p>
                         <p
                           className={`text-sm ${
-                            getTotalFromQuantities() > contractBalance * 0.9
+                            getTotalFromQuantities() > remainingBalance * 0.9
                               ? "text-orange-600"
                               : "text-green-600"
                           }`}
@@ -839,18 +1010,18 @@ const ContractInterface: React.FC<ContractInterfaceProps> = ({
                       <div className="text-right">
                         <p
                           className={`text-xs ${
-                            getTotalFromQuantities() > contractBalance * 0.9
+                            getTotalFromQuantities() > remainingBalance * 0.9
                               ? "text-orange-500"
                               : "text-green-500"
                           }`}
                         >
                           Remaining:{" "}
-                          {(contractBalance - getTotalFromQuantities()).toFixed(
-                            4
-                          )}{" "}
+                          {(
+                            remainingBalance - getTotalFromQuantities()
+                          ).toFixed(4)}{" "}
                           ALGO
                         </p>
-                        {getTotalFromQuantities() > contractBalance * 0.9 && (
+                        {getTotalFromQuantities() > remainingBalance * 0.9 && (
                           <p className="text-xs text-orange-600 font-medium">
                             ⚠️ Near limit
                           </p>
@@ -877,6 +1048,160 @@ const ContractInterface: React.FC<ContractInterfaceProps> = ({
                     className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
                   >
                     {loading ? "Minting..." : `Mint ${getTotalNotes()} Notes`}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Withdrawal Modal */}
+      {showWithdrawalModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                  <svg
+                    className="w-5 h-5 text-green-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">
+                    Withdraw Cash
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    Withdraw using unique code
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setMessage(""); // Clear any messages when closing
+                  setShowWithdrawalModal(false);
+                  setUniqueCode("");
+                  setDestinationAddress("");
+                  setVerificationResult(null);
+                }}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <svg
+                  className="w-6 h-6 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-6">
+              <div className="space-y-6">
+                {/* Unique Code Input */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Unique Code
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={uniqueCode}
+                      onChange={(e) => setUniqueCode(e.target.value)}
+                      placeholder="Enter unique code (e.g., ABC123XYZ789)"
+                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    />
+                    <button
+                      onClick={handleVerifyCode}
+                      disabled={loading || !uniqueCode.trim()}
+                      className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                    >
+                      {loading ? "Verifying..." : "Verify"}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Verification Result */}
+                {verificationResult && (
+                  <div
+                    className={`p-4 rounded-lg ${
+                      verificationResult.valid
+                        ? "bg-green-50 border border-green-200"
+                        : "bg-red-50 border border-red-200"
+                    }`}
+                  >
+                    <p
+                      className={`text-sm font-semibold ${
+                        verificationResult.valid
+                          ? "text-green-800"
+                          : "text-red-800"
+                      }`}
+                    >
+                      {verificationResult.message}
+                    </p>
+                    {verificationResult.valid && (
+                      <p className="text-lg font-bold text-green-700 mt-1">
+                        Amount: {verificationResult.amount} ALGO
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Destination Address */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Destination Address
+                  </label>
+                  <input
+                    type="text"
+                    value={destinationAddress}
+                    onChange={(e) => setDestinationAddress(e.target.value)}
+                    placeholder="Enter Algorand address"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 font-mono text-sm"
+                  />
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={() => {
+                      setMessage(""); // Clear any messages when canceling
+                      setShowWithdrawalModal(false);
+                      setUniqueCode("");
+                      setDestinationAddress("");
+                      setVerificationResult(null);
+                    }}
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleWithdraw}
+                    disabled={
+                      loading ||
+                      !verificationResult?.valid ||
+                      !destinationAddress.trim()
+                    }
+                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                  >
+                    {loading ? "Processing..." : "Withdraw"}
                   </button>
                 </div>
               </div>

@@ -8,7 +8,6 @@ import algosdk from "algosdk";
 export class LiquidityPoolService {
   private liquidityAccount: algosdk.Account;
   private algodClient: algosdk.Algodv2;
-  private appId: number;
 
   constructor() {
     // Initialize Algod client
@@ -18,9 +17,6 @@ export class LiquidityPoolService {
       "https://testnet-api.algonode.cloud";
     const algodPort = 443;
     this.algodClient = new algosdk.Algodv2(algodToken, algodServer, algodPort);
-
-    // Get app ID
-    this.appId = parseInt(import.meta.env.VITE_APP_ID || "745696331");
 
     // Initialize liquidity pool account
     // Option 1: Use environment variable (recommended)
@@ -84,7 +80,6 @@ export class LiquidityPoolService {
 
       // Sign and send transaction
       const signedTxn = paymentTxn.signTxn(this.liquidityAccount.sk);
-      const txId = paymentTxn.txID().toString();
 
       console.log(
         `📤 Sending ${amount} ALGO from liquidity pool to ${destinationAddress}`
